@@ -1,8 +1,22 @@
-const API_URL    = 'https://script.google.com/macros/s/AKfycbwDcsGng774iNQ9zNdBt-bdkIFGSg7_lvr5MRvIzzqE6s9bGex7ej1U1WChrY-KgOM/exec'
+import { auth, getShopConfig } from './firebase'
+
 const LOCAL_API  = 'http://localhost:3001'
 const GITHUB_RAW = 'https://raw.githubusercontent.com/xbuddy11-dev/xbuddyserver/main/xerox%20buddy/public/tunnel-url.txt'
 
 let _tunnelUrl = null
+let _shopConfig = null
+
+async function getConfig() {
+  if (_shopConfig) return _shopConfig
+  const user = auth.currentUser
+  if (user) _shopConfig = await getShopConfig(user.uid)
+  return _shopConfig
+}
+
+async function getGasUrl() {
+  const config = await getConfig()
+  return config?.gasUrl || ''
+}
 
 async function getTunnelUrl() {
   if (_tunnelUrl) return _tunnelUrl
@@ -21,7 +35,7 @@ async function getTunnelUrl() {
     }
   } catch {}
   try {
-    const res = await fetch(`${API_URL}?action=getTunnelUrl`, { signal: AbortSignal.timeout(4000) })
+    const res = await fetch(`${await getGasUrl()}?action=getTunnelUrl`, { signal: AbortSignal.timeout(4000) })
     if (res.ok) {
       const data = await res.json()
       if (data?.url) { _tunnelUrl = data.url; return _tunnelUrl }
@@ -32,7 +46,8 @@ async function getTunnelUrl() {
 
 async function gasGet(params) {
   try {
-    const res = await fetch(`${API_URL}?${new URLSearchParams(params).toString()}`)
+    const gasUrl = await getGasUrl()
+    const res = await fetch(`${gasUrl}?${new URLSearchParams(params).toString()}`)
     return await res.json()
   } catch {
     return null
