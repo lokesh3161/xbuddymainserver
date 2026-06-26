@@ -115,7 +115,7 @@ const getBadge = status => {
 const ADMIN_PASSWORD = '2580'
 const formatCurrency = value => `₹${value.toLocaleString()}`
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ user, onBack }) {
   const [orders, setOrders] = useState(INITIAL_ORDERS)
   const [booths, setBooths] = useState(INITIAL_BOOTHS)
   const [health, setHealth] = useState(HEALTH_CHECKS)
@@ -343,12 +343,18 @@ export default function AdminDashboard() {
             <p className="text-sm text-slate-400 uppercase tracking-[0.24em] mb-3">Premium Admin Dashboard</p>
             <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">X Buddy Operations</h1>
             <p className="mt-3 text-slate-400 max-w-2xl">Monitor print queue flow, booth uptime, orders, and revenue from a startup-grade SaaS admin console.</p>
+            {user && (
+              <div className="mt-3 inline-flex items-center gap-2">
+                <span className="text-slate-300 font-medium">{user.displayName || user.email}</span>
+                <span className="rounded-full bg-purple-500/20 px-2.5 py-0.5 text-xs font-semibold text-purple-300 border border-purple-500/30">Owner</span>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap gap-3">
-            <a href="/" className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition hover:border-purple-400/30 hover:bg-white/10">
+            <button onClick={onBack} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition hover:border-purple-400/30 hover:bg-white/10">
               <RefreshCcw className="h-4 w-4 text-purple-300" />
               Back to User App
-            </a>
+            </button>
           </div>
         </div>
 

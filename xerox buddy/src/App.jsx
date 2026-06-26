@@ -37,8 +37,9 @@ export default function App() {
   const [settings, setSettings]   = useState(DEFAULT_SETTINGS)
   const [showPayment, setShowPayment] = useState(false)
   const [orderId, setOrderId]     = useState(null)
-  const [user, setUser]           = useState(undefined)
+  const [user, setUser]           = useState(null)
   const [shopConfig, setShopConfig] = useState(null)
+  const [showAdminLogin, setShowAdminLogin] = useState(false)
   const settingsRef = useRef(null)
 
   useEffect(() => {
@@ -78,11 +79,9 @@ export default function App() {
     setTimeout(() => settingsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
   }
 
-  // Called when user clicks Print on a Quick Form (URL) or Letter Generator (File)
   async function handleExternalPrint(fileOrUrl, name) {
     let file
     if (typeof fileOrUrl === 'string') {
-      // Quick Form — fetch PDF from public/forms/
       const res    = await fetch(fileOrUrl)
       const blob   = await res.blob()
       file = new File([blob], name + '.pdf', { type: 'application/pdf' })
@@ -112,12 +111,22 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const isAdminRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
-  if (isAdminRoute) return <AdminDashboard />
+  function handleAdminClick() {
+    if (user) {
+      setStep('admin')
+    } else {
+      setShowAdminLogin(true)
+    }
+  }
 
-  if (user === undefined) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-500">Loading...</p></div>
-  if (!user) return <Login onLogin={setUser} />
-  if (!shopConfig) return <ShopSetup user={user} onComplete={async () => { const c = await getShopConfig(user.uid); setShopConfig(c) }} />
+  function handleAdminLoginSuccess(u) {
+    setUser(u)
+    setShowAdminLogin(false)
+    setStep('admin')
+  }
+
+  if (showAdminLogin) return <Login onLogin={handleAdminLoginSuccess} />
+  if (step === 'admin' && user) return <AdminDashboard user={user} onBack={handleReset} />
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
@@ -144,12 +153,12 @@ export default function App() {
             >
               Print Now
             </button>
-            <a
-              href="/admin"
+            <button
+              onClick={handleAdminClick}
               className="px-4 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white font-semibold transition hover:border-purple-400/30 hover:bg-white/10"
             >
               Admin
-            </a>
+            </button>
           </div>
         ) : step === STEP.RESUME ? null : (
           <div className="flex items-center gap-2 text-xs text-gray-500">
