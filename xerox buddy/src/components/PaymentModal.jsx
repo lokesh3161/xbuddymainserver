@@ -2,6 +2,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import PaymentProofForm from './PaymentProofForm'
 
 export default function PaymentModal({ total, orderMeta, onSuccess, onClose }) {
+  function openUpiApp() {
+    // Try to open UPI app — works on Android/iOS mobile
+    window.location.href = 'upi://pay'
+  }
   return (
     <AnimatePresence>
       {/* Backdrop */}
@@ -70,6 +74,14 @@ export default function PaymentModal({ total, orderMeta, onSuccess, onClose }) {
           <p className="text-center text-gray-500 text-xs mb-2">
             Pay using PhonePe · GPay · Paytm · BHIM
           </p>
+
+          {/* Open UPI App button — works on mobile */}
+          <button
+            onClick={openUpiApp}
+            className="w-full py-3 mb-3 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold text-sm transition flex items-center justify-center gap-2"
+          >
+            📱 Open UPI App to Pay
+          </button>
 
           {/* Payment proof form — shown below QR */}
           <PaymentProofForm
