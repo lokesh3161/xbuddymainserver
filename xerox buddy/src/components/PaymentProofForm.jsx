@@ -15,9 +15,6 @@ export default function PaymentProofForm({ orderMeta, onSuccess, onClose }) {
     setError('')
 
     // Basic validation
-    if (!phone.trim()) return setError('Please enter your phone number.')
-    if (!transactionId.trim()) return setError('Please enter the Transaction ID.')
-
     setLoading(true)
     try {
       const screenshotBase64 = ''
