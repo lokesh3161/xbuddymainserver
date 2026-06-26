@@ -2,8 +2,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import PaymentProofForm from './PaymentProofForm'
 
 export default function PaymentModal({ total, orderMeta, onSuccess, onClose }) {
-  function openUpiApp() {
-    window.location.href = 'upi://'
+  function openUpiApp(scheme) {
+    window.location.href = scheme
   }
   return (
     <AnimatePresence>
@@ -70,17 +70,27 @@ export default function PaymentModal({ total, orderMeta, onSuccess, onClose }) {
             </div>
           </div>
 
-          <p className="text-center text-gray-500 text-xs mb-2">
-            Pay using PhonePe · GPay · Paytm · BHIM
-          </p>
-
-          {/* Open UPI App button */}
-          <button
-            onClick={openUpiApp}
-            className="w-full py-3 mb-3 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold text-sm transition flex items-center justify-center gap-2"
-          >
-            💳 Pay with UPI App
-          </button>
+          {/* UPI App Buttons */}
+          <p className="text-center text-gray-400 text-xs mb-3">Choose your UPI app to pay</p>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {[
+              { name: 'GPay', icon: '🟢', scheme: 'tez://upi/pay' },
+              { name: 'PhonePe', icon: '🟣', scheme: 'phonepe://pay' },
+              { name: 'Paytm', icon: '🔵', scheme: 'paytmmp://pay' },
+              { name: 'BHIM', icon: '🟠', scheme: 'upi://pay' },
+              { name: 'Amazon Pay', icon: '🟡', scheme: 'amzn://pay' },
+              { name: 'WhatsApp', icon: '💚', scheme: 'whatsapp://pay' },
+            ].map(({ name, icon, scheme }) => (
+              <button
+                key={name}
+                onClick={() => openUpiApp(scheme)}
+                className="flex flex-col items-center justify-center py-3 rounded-xl bg-white/5 border border-white/10 hover:border-purple-500/50 hover:bg-white/10 transition gap-1"
+              >
+                <span className="text-2xl">{icon}</span>
+                <span className="text-white text-xs font-medium">{name}</span>
+              </button>
+            ))}
+          </div>
 
           {/* Payment proof form — shown below QR */}
           <PaymentProofForm
