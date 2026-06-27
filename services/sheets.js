@@ -22,7 +22,9 @@ const COL = {
   RELEASE_STATUS: 13,
 }
 
-const BASE_DIR = path.dirname(process.pkg ? process.execPath : path.join(__dirname, '..'))
+const BASE_DIR = process.pkg
+  ? path.dirname(process.execPath)
+  : path.dirname(path.resolve(require.main ? require.main.filename : __filename))
 
 function getAuth() {
   return new google.auth.GoogleAuth({

@@ -32,7 +32,8 @@ async function getDefaultPrinter(verbose = true) {
     if (printerCache && now - lastPrinterCheck < PRINTER_CACHE_TTL) return printerCache
 
     const printers = await new Promise((resolve, reject) => {
-      execFile('wmic', ['printer', 'get', 'name'], (err, stdout) => {
+      const wmicPath = 'C:\\Windows\\System32\\wbem\\wmic.exe'
+      execFile(wmicPath, ['printer', 'get', 'name'], (err, stdout) => {
         if (err) return reject(err)
         const names = stdout.split('\n')
           .map(l => l.trim())
