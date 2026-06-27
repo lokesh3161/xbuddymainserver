@@ -158,7 +158,7 @@ export default function AdminDashboard({ user, onBack }) {
         boothPin: shopConfig.boothPin,
       }, null, 2))
 
-      // START.bat - uses node instead of exe
+      // START.bat
       zip.file('START.bat', `@echo off
 title X Buddy Print Agent
 color 0A
@@ -167,27 +167,76 @@ echo  X Buddy Print Agent Starting...
 echo  ================================
 echo.
 cd /d "%~dp0"
-start "" /min cloudflared.exe tunnel --url http://localhost:3001
-node server.js
+
+node --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo  [!] Node.js not found! Please run SETUP.bat first
+    pause
+    exit
+)
+
+if not exist "node_modules" (
+    echo  [..] Installing dependencies...
+    call npm install
+)
+
+start "" /min cmd /c "cloudflared.exe tunnel --url http://localhost:3001 > tunnel.log 2>&1"
+node index.js
 pause
 `)
 
-      // server.js entry point
-      zip.file('README.txt', `X Buddy Shop Package
-====================
-Setup Steps:
-1. Install Node.js from https://nodejs.org
-2. Run: npm install (first time only)
-3. Double click START.bat every day
-
-Files:
-- START.bat        : Start the print agent
-- shop-config.json : Your shop settings
-- credentials.json : Google service account key (get from your admin)
+      // SETUP.bat
+      zip.file('SETUP.bat', `@echo off
+title X Buddy Setup
+color 0A
+echo.
+echo  ================================
+echo   X Buddy Print Agent Setup
+echo  ================================
+echo.
+node --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo  Downloading Node.js...
+    powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v18.20.4/node-v18.20.4-x64.msi' -OutFile 'node-setup.msi'"
+    msiexec /i node-setup.msi /quiet /norestart
+    del node-setup.msi
+    echo  Node.js installed!
+) else (
+    echo  Node.js already installed!
+)
+call npm install
+echo.
+echo  Setup Complete! Now double-click START.bat
+echo.
+pause
 `)
+
+      // README
+      zip.file('README.txt', `X Buddy Shop Package - ${shopConfig.shopName}
+${'='.repeat(40)}
+
+FIRST TIME SETUP:
+1. Put credentials.json in this folder (get from admin)
+2. Double-click SETUP.bat (installs Node.js)
+3. Double-click START.bat
+
+EVERY DAY:
+- Just double-click START.bat
+
+SUPPORT: Contact X Buddy support
+`)
+
+      // Fetch cloudflared.exe
+      const cloudflaredRes = await fetch('/cloudflared.exe')
+      if (cloudflaredRes.ok) zip.file('cloudflared.exe', await cloudflaredRes.arrayBuffer())
 
       const blob = await zip.generateAsync({ type: 'blob' })
       saveAs(blob, `XBuddy-${shopConfig.shopName.replace(/\s+/g, '-')}-Package.zip`)
+    } catch (e) {
+      alert('Download failed: ' + e.message)
+    }
+    setDownloading(false)
+  }
     } catch (e) {
       alert('Download failed: ' + e.message)
     }

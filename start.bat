@@ -1,15 +1,30 @@
 @echo off
-set PATH=C:\Program Files\nodejs;%PATH%
-cd /d "C:\Users\B Saravan Rahul\OneDrive\Desktop\xbuddy"
+title X Buddy Print Agent
+color 0A
+echo.
+echo  X Buddy Print Agent Starting...
+echo  ================================
+echo.
+cd /d "%~dp0"
 
-echo Starting Cloudflare Tunnel...
-if exist tunnel.log del tunnel.log
+:: Check Node.js
+node --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo  [!] Node.js not found!
+    echo  [!] Please run SETUP.bat first
+    pause
+    exit
+)
 
-start "Cloudflare Tunnel" cmd /c "cloudflared.exe tunnel --url http://localhost:3001 > tunnel.log 2>&1"
+:: Check dependencies
+if not exist "node_modules" (
+    echo  [..] Installing dependencies first...
+    call npm install
+)
 
-echo Waiting for tunnel URL...
-timeout /t 8 /nobreak > nul
+:: Start tunnel in background
+start "" /min cmd /c "cloudflared.exe tunnel --url http://localhost:3001 > tunnel.log 2>&1"
 
-echo Starting X Buddy Print Agent...
+:: Start print agent
 node index.js
 pause
