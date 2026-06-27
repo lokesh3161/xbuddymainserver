@@ -4,7 +4,7 @@ const logger = require('../utils/logger')
 
 const TUNNEL_LOG  = process.env.TUNNEL_LOG || path.join(__dirname, '..', 'tunnel.log')
 const TUNNEL_CACHE = path.join(__dirname, '..', 'tunnel-url.txt')
-const GAS_URL     = 'https://script.google.com/macros/s/AKfycbzEGtssDA6cpNQ2Wg-TexwMFq4fhVeguNzp3EiAUd8W5aTZ4bgYscvGg2_7Ez2z2utr/exec'
+const GAS_URL     = 'https://script.google.com/macros/s/AKfycbzNC5W8nWK4eZrrSCFUEmL7rFU4dolWseJjRUIf-_d87AQNpW5anV3WHncAECb6ELoY/exec'
 
 let currentTunnelUrl = null
 
