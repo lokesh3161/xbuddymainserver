@@ -37,6 +37,7 @@ import {
   fetchBoothStatus,
   fetchHealthStatus,
 } from '../utils/api'
+import { getShopConfig } from '../utils/firebase'
 
 const STATUS_STYLES = {
   Waiting: 'bg-amber-500/10 text-amber-300',
@@ -112,7 +113,6 @@ const getBadge = status => {
   return 'bg-slate-500/15 text-slate-300'
 }
 
-const ADMIN_PASSWORD = '2580'
 const formatCurrency = value => `₹${value.toLocaleString()}`
 
 export default function AdminDashboard({ user, onBack }) {
@@ -123,8 +123,18 @@ export default function AdminDashboard({ user, onBack }) {
   const [realConnected, setRealConnected] = useState(false)
   const [realError, setRealError] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
-  const [isAuthorized, setIsAuthorized] = useState(false)
+  const [isAuthorized, setIsAuthorized] = useState(!!user)
   const [authError, setAuthError] = useState('')
+  const [boothPin, setBoothPin] = useState(null)
+
+  useEffect(() => {
+    if (user) {
+      setIsAuthorized(true)
+      getShopConfig(user.uid).then(config => {
+        if (config?.boothPin) setBoothPin(config.boothPin)
+      })
+    }
+  }, [user])
 
   const stats = useMemo(() => {
     const total = orders.length
@@ -151,7 +161,8 @@ export default function AdminDashboard({ user, onBack }) {
 
   const handleAdminLogin = (event) => {
     event.preventDefault()
-    if (adminPassword === ADMIN_PASSWORD) {
+    const correctPin = boothPin || '2580'
+    if (adminPassword === correctPin) {
       setIsAuthorized(true)
       setAuthError('')
       if (typeof window !== 'undefined') {
