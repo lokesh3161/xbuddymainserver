@@ -126,7 +126,8 @@ export default function App() {
   }
 
   if (showAdminLogin) return <Login onLogin={handleAdminLoginSuccess} />
-  if (step === 'admin' && user) return <AdminDashboard user={user} onBack={handleReset} />
+  if (step === 'admin' && user && !shopConfig) return <ShopSetup user={user} onComplete={async () => { const c = await getShopConfig(user.uid); setShopConfig(c) }} />
+  if (step === 'admin' && user && shopConfig) return <AdminDashboard user={user} onBack={handleReset} />
   if (step === 'booth-admin') return <AdminDashboard onBack={handleReset} />
 
   return (
