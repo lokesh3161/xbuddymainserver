@@ -3,12 +3,13 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPasswor
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore'
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBSbCSHDiM58lCOJCTS91U8HVXorFl4x98",
-  authDomain: "xbuddy-servers-cc760.firebaseapp.com",
-  projectId: "xbuddy-servers-cc760",
-  storageBucket: "xbuddy-servers-cc760.firebasestorage.app",
-  messagingSenderId: "511330041083",
-  appId: "1:511330041083:web:a02d79bc3f2b42e58c845e"
+  apiKey: "AIzaSyAZpr8ckQoHRgVsG_cEm84sxygxxCiVaNk",
+  authDomain: "xbuddy-servers-f9261.firebaseapp.com",
+  projectId: "xbuddy-servers-f9261",
+  storageBucket: "xbuddy-servers-f9261.firebasestorage.app",
+  messagingSenderId: "767978359345",
+  appId: "1:767978359345:web:d4fd840d1f1d8f253ba310",
+  measurementId: "G-0S4KZPEELQ"
 }
 
 const app = initializeApp(firebaseConfig)
