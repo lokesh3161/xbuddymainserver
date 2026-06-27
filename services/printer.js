@@ -1,5 +1,21 @@
 const ptp    = require('pdf-to-printer')
+const fs     = require('fs')
+const path   = require('path')
 const logger = require('../utils/logger')
+
+const BASE_DIR = path.dirname(process.pkg ? process.execPath : __dirname)
+const SUMATRA_SRC = path.join(__dirname, '..', 'node_modules', 'pdf-to-printer', 'dist', 'SumatraPDF-3.4.6-32.exe')
+const SUMATRA_DST = path.join(BASE_DIR, 'SumatraPDF-3.4.6-32.exe')
+
+// Extract SumatraPDF next to exe if running as pkg
+if (process.pkg && !fs.existsSync(SUMATRA_DST)) {
+  try {
+    fs.copyFileSync(SUMATRA_SRC, SUMATRA_DST)
+    logger.success('SumatraPDF extracted successfully')
+  } catch (e) {
+    logger.warn('Could not extract SumatraPDF: ' + e.message)
+  }
+}
 
 /**
  * Get the default printer name on this Windows machine
@@ -68,6 +84,7 @@ async function printPdf(filePath, options = {}) {
       printer: printerName,
       copies:  copies,
       silent:  true,
+      sumatraPath: fs.existsSync(SUMATRA_DST) ? SUMATRA_DST : undefined,
     }
 
     // Add grayscale for B&W printing
