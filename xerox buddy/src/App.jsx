@@ -127,6 +127,7 @@ export default function App() {
 
   if (showAdminLogin) return <Login onLogin={handleAdminLoginSuccess} />
   if (step === 'admin' && user) return <AdminDashboard user={user} onBack={handleReset} />
+  if (step === 'booth-admin') return <AdminDashboard onBack={handleReset} />
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
@@ -139,11 +140,11 @@ export default function App() {
           <span className="text-white font-bold text-lg">X Buddy</span>
         </button>
         {step === STEP.HERO ? (
-          <div className="hidden md:flex items-center gap-6 text-xs text-gray-500">
-            <a href="#academic-toolkit" className="hover:text-purple-400 transition-colors">Academic Toolkit</a>
+          <div className="flex items-center gap-3 md:gap-6 text-xs text-gray-500">
+            <a href="#academic-toolkit" className="hidden md:block hover:text-purple-400 transition-colors">Academic Toolkit</a>
             <button
               onClick={() => setStep(STEP.RESUME)}
-              className="hover:text-purple-400 transition-colors"
+              className="hidden md:block hover:text-purple-400 transition-colors"
             >
               Resume Builder
             </button>
@@ -154,10 +155,16 @@ export default function App() {
               Print Now
             </button>
             <button
-              onClick={handleAdminClick}
+              onClick={() => setStep('booth-admin')}
               className="px-4 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white font-semibold transition hover:border-purple-400/30 hover:bg-white/10"
             >
               Admin
+            </button>
+            <button
+              onClick={handleAdminClick}
+              className="px-4 py-1.5 rounded-lg border border-purple-500/40 bg-purple-600/20 text-purple-300 font-semibold transition hover:bg-purple-600/30"
+            >
+              Owner
             </button>
           </div>
         ) : step === STEP.RESUME ? null : (
