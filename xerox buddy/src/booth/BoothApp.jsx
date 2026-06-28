@@ -1,22 +1,26 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { getAgentEndpoints } from '../utils/agent'
 
 const SESSION_KEY   = 'xbuddy_booth_auth'
-const AGENT_URL     = 'http://localhost:3001'
 
 function isAuthed() { return sessionStorage.getItem(SESSION_KEY) === 'true' }
 
 async function apiPost(path, body) {
   try {
-    const res = await fetch(`${AGENT_URL}${path}`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(body),
-    })
-    return await res.json()
-  } catch {
-    return { success: false, error: 'Cannot connect to print agent. Is it running?' }
-  }
+    const endpoints = await getAgentEndpoints()
+    for (const base of endpoints) {
+      try {
+        const res = await fetch(`${base}${path}`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify(body),
+        })
+        if (res.ok) return await res.json()
+      } catch {}
+    }
+  } catch {}
+  return { success: false, error: 'Cannot connect to print agent. Is it running?' }
 }
 
 // ── PIN Login ─────────────────────────────────────────────────────────────────

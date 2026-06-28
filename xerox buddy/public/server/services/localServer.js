@@ -18,6 +18,15 @@ const PENDING_DIR = path.join(BASE_DIR, 'downloads')
 app.use(cors())
 app.use(express.json({ limit: '100mb' }))
 
+function ensureDirectory(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true })
+  }
+  return dirPath
+}
+
+ensureDirectory(PENDING_DIR)
+
 // Save screenshot locally as PNG
 function saveScreenshotLocally(orderId, screenshotBase64) {
   try {
@@ -30,6 +39,30 @@ function saveScreenshotLocally(orderId, screenshotBase64) {
 }
 
 const { boothPin: BOOTH_PIN } = require('../config')
+
+function getLocalPendingOrder(orderId) {
+  const normalizedOrderId = String(orderId || '').trim().toUpperCase()
+  if (!normalizedOrderId || !fs.existsSync(PENDING_DIR)) return null
+
+  const files = fs.readdirSync(PENDING_DIR)
+  const match = files.find(file => {
+    const upper = file.toUpperCase()
+    return upper.startsWith(`${normalizedOrderId}_PENDING.B64`) || upper.startsWith(`${normalizedOrderId}.PDF`)
+  })
+
+  if (!match) return null
+
+  return {
+    rowIndex: null,
+    orderId: normalizedOrderId,
+    name: '',
+    fileName: '',
+    copies: 1,
+    printType: 'B&W',
+    printStatus: 'Waiting',
+    releaseStatus: 'Waiting For Release',
+  }
+}
 
 // POST /booth-login — validate shopkeeper PIN
 app.post('/booth-login', (req, res) => {
@@ -66,6 +99,11 @@ app.post('/save-order', (req, res) => {
 app.get('/tunnel-url', (req, res) => {
   const url = getTunnelUrl()
   res.json({ success: !!url, url: url || null })
+})
+
+// GET / — basic health check for browser-based checks
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'Print agent local server is running' })
 })
 
 // GET /status — health check
@@ -150,7 +188,12 @@ app.post('/release-print', async (req, res) => {
   const { orderId } = req.body
   if (!orderId) return res.json({ success: false, error: 'Missing Order ID' })
 
-  const order = await getOrderByIdForRelease(orderId.trim().toUpperCase())
+  const normalizedOrderId = orderId.trim().toUpperCase()
+  let order = await getOrderByIdForRelease(normalizedOrderId)
+
+  if (!order) {
+    order = getLocalPendingOrder(normalizedOrderId)
+  }
 
   if (!order) {
     return res.json({ success: false, error: 'Order not found. Check the Order ID.' })
@@ -163,9 +206,13 @@ app.post('/release-print', async (req, res) => {
   }
 
   // Mark as Released immediately so double-tap is blocked
-  await updateReleaseStatus(order.rowIndex, 'Released')
-  await updatePrintStatus(order.rowIndex, 'Printing')
-  res.json({ success: true, message: `Printing started for ${orderId}` })
+  if (order.rowIndex) {
+    await updateReleaseStatus(order.rowIndex, 'Released')
+    await updatePrintStatus(order.rowIndex, 'Printing')
+  } else {
+    logger.warn(`Using local pending file for order ${normalizedOrderId}; skipping remote sheet status update`)
+  }
+  res.json({ success: true, message: `Printing started for ${normalizedOrderId}` })
 
   // Trigger print async
   const filePath = path.join(PENDING_DIR, `${order.orderId}.pdf`)
@@ -207,4 +254,4 @@ function decodePendingPdf(orderId, outputPath) {
   return true
 }
 
-module.exports = { startLocalServer, decodePendingPdf }
+module.exports = { startLocalServer, decodePendingPdf, ensureDirectory }

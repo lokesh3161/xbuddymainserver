@@ -1,12 +1,31 @@
 const fs   = require('fs')
 const path = require('path')
 
-const BASE_DIR = process.pkg 
-  ? path.dirname(process.execPath)
-  : path.dirname(path.resolve(require.main ? require.main.filename : __filename))
-const CONFIG_CACHE = path.join(BASE_DIR, 'shop-config.json')
+function findConfigPath() {
+  const candidates = []
 
-if (!fs.existsSync(CONFIG_CACHE)) {
+  if (process.pkg) {
+    candidates.push(path.dirname(process.execPath))
+  }
+
+  if (require.main && require.main.filename) {
+    candidates.push(path.dirname(path.resolve(require.main.filename)))
+  }
+
+  candidates.push(process.cwd())
+  candidates.push(path.resolve(__dirname))
+
+  for (const dir of candidates) {
+    const configPath = path.join(dir, 'shop-config.json')
+    if (fs.existsSync(configPath)) return configPath
+  }
+
+  return null
+}
+
+const CONFIG_CACHE = findConfigPath()
+
+if (!CONFIG_CACHE) {
   console.error('\n  ERROR: shop-config.json not found!')
   console.error('  Please run setup first.\n')
   process.exit(1)

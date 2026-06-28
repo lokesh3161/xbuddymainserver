@@ -100,6 +100,8 @@ async function getPdfUrlFromGas(orderId, fileName) {
 }
 
 async function getOrderByIdForRelease(orderId) {
+  const normalizedOrderId = normalizeOrderId(orderId)
+
   // Try direct Sheets API first
   try {
     const auth   = getAuth()
@@ -111,7 +113,8 @@ async function getOrderByIdForRelease(orderId) {
     const rows = response.data.values || []
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i]
-      if ((row[COL.ORDER_ID] || '').trim() === orderId.trim()) {
+      const storedOrderId = normalizeOrderId(row[COL.ORDER_ID])
+      if (storedOrderId === normalizedOrderId) {
         return {
           rowIndex:      i + 1,
           orderId:       row[COL.ORDER_ID]    || '',
@@ -131,7 +134,7 @@ async function getOrderByIdForRelease(orderId) {
     logger.info('Falling back to GAS for order lookup...')
     try {
       const axios = require('axios')
-      const res = await axios.get(`${GAS_URL}?action=getOrderForRelease&orderId=${encodeURIComponent(orderId)}`, { timeout: 8000 })
+      const res = await axios.get(`${GAS_URL}?action=getOrderForRelease&orderId=${encodeURIComponent(normalizedOrderId)}`, { timeout: 8000 })
       const data = res.data
       if (data && data.orderId) {
         logger.success(`Got order ${orderId} via GAS fallback`)
@@ -142,6 +145,13 @@ async function getOrderByIdForRelease(orderId) {
     }
     return null
   }
+}
+
+function normalizeOrderId(orderId) {
+  return String(orderId || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '')
 }
 
 function normalizeOrderStatus(status, releaseStatus) {
@@ -216,4 +226,4 @@ async function getAllOrders() {
   }
 }
 
-module.exports = { getWaitingOrders, getPdfUrlFromGas, getOrderByIdForRelease, getAllOrders }
+module.exports = { getWaitingOrders, getPdfUrlFromGas, getOrderByIdForRelease, getAllOrders, normalizeOrderId }
