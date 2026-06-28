@@ -2,10 +2,15 @@ const { execFile } = require('child_process')
 const fs     = require('fs')
 const path   = require('path')
 const logger = require('../utils/logger')
+const { getCredentialsPath } = require('../utils/credentialPath')
 
 const BASE_DIR    = path.dirname(process.pkg ? process.execPath : __dirname)
 const SUMATRA_SRC = path.join(__dirname, '..', 'node_modules', 'pdf-to-printer', 'dist', 'SumatraPDF-3.4.6-32.exe')
 const SUMATRA_DST = path.join(BASE_DIR, 'SumatraPDF-3.4.6-32.exe')
+
+if (process.pkg && !fs.existsSync(getCredentialsPath(BASE_DIR))) {
+  logger.warn('credentials.json was not found next to the executable. Place it beside the application to enable Google Sheets/Drive access.')
+}
 
 if (process.pkg && !fs.existsSync(SUMATRA_DST)) {
   try {
@@ -33,13 +38,20 @@ async function getDefaultPrinter(verbose = true) {
 
     const printers = await new Promise((resolve, reject) => {
       const wmicPath = 'C:\\Windows\\System32\\wbem\\wmic.exe'
-      execFile(wmicPath, ['printer', 'get', 'name'], (err, stdout) => {
-        if (err) return reject(err)
-        const names = stdout.split('\n')
-          .map(l => l.trim())
-          .filter(l => l && l !== 'Name')
-        resolve(names)
-      })
+      const fallbackPaths = [wmicPath, 'wmic.exe']
+      const tryExec = (index) => {
+        if (index >= fallbackPaths.length) return reject(new Error('wmic.exe not found'))
+        const candidate = fallbackPaths[index]
+        execFile(candidate, ['printer', 'get', 'name'], (err, stdout) => {
+          if (err && index + 1 < fallbackPaths.length) return tryExec(index + 1)
+          if (err) return reject(err)
+          const names = stdout.split('\n')
+            .map(l => l.trim())
+            .filter(l => l && l !== 'Name')
+          resolve(names)
+        })
+      }
+      tryExec(0)
     })
 
     if (verbose) {

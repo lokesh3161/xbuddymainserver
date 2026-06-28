@@ -166,7 +166,7 @@ echo  ================================
 echo   X Buddy Print Agent Setup
 echo  ================================
 echo.
-node --version >nul 2>&1
+where node >nul 2>&1
 if %errorlevel% neq 0 (
     echo  Downloading Node.js...
     powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v18.20.4/node-v18.20.4-x64.msi' -OutFile 'node-setup.msi'"
@@ -192,7 +192,11 @@ echo  ================================
 echo.
 cd /d "%~dp0"
 if not exist "node_modules" call npm install
-start "" /min cmd /c "cloudflared.exe tunnel --url http://localhost:3001 > tunnel.log 2>&1"
+if exist "cloudflared.exe" (
+    start "" /min cmd /c "cloudflared.exe tunnel --url http://localhost:3001 > tunnel.log 2>&1"
+) else (
+    echo  cloudflared.exe not found; continuing without tunnel
+)
 node index.js
 pause`)
 
@@ -213,7 +217,7 @@ EVERY DAY: Just double-click START.bat`)
       const serverFiles = ['index.js', 'config.js', 'package.json',
         'services/downloader.js', 'services/driveUploader.js', 'services/localServer.js',
         'services/printer.js', 'services/sheets.js', 'services/tunnel.js', 'services/updater.js',
-        'utils/logger.js']
+        'utils/logger.js', 'utils/credentialPath.js']
       for (const f of serverFiles) {
         const res = await fetch(`/server/${f}`)
         if (res.ok) zip.file(f, await res.text())

@@ -2,13 +2,14 @@ const { google } = require('googleapis')
 const fs     = require('fs')
 const path   = require('path')
 const logger = require('../utils/logger')
+const { getCredentialsPath } = require('../utils/credentialPath')
 
 const PDF_FOLDER_ID        = '1QRJ-c9wDYJJoDpflTdhkZ91rcjVBgswF'
 const SCREENSHOT_FOLDER_ID = '13aksBYQ3sRnMh_oFKTAXagUr4h7xMD9E'
 
 function getAuth() {
   return new google.auth.GoogleAuth({
-    keyFile: './credentials.json',
+    keyFile: getCredentialsPath(__dirname),
     scopes: [
       'https://www.googleapis.com/auth/drive',
       'https://www.googleapis.com/auth/spreadsheets',

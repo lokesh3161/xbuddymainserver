@@ -1,12 +1,13 @@
 const { google } = require('googleapis')
 const logger = require('../utils/logger')
+const { getCredentialsPath } = require('../utils/credentialPath')
 const { sheetId: SPREADSHEET_ID } = require('../config')
 
 const SHEET_NAME = 'Sheet1'
 
 function getAuth() {
   return new google.auth.GoogleAuth({
-    keyFile: './credentials.json',
+    keyFile: getCredentialsPath(__dirname),
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   })
 }

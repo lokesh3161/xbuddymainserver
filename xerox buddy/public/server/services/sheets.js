@@ -1,6 +1,7 @@
 const { google } = require('googleapis')
 const path   = require('path')
 const logger = require('../utils/logger')
+const { getCredentialsPath } = require('../utils/credentialPath')
 const { sheetId: SPREADSHEET_ID, gasUrl: GAS_URL } = require('../config')
 
 const SHEET_NAME = 'Sheet1'
@@ -28,7 +29,7 @@ const BASE_DIR = process.pkg
 
 function getAuth() {
   return new google.auth.GoogleAuth({
-    keyFile: path.join(BASE_DIR, 'credentials.json'),
+    keyFile: getCredentialsPath(BASE_DIR),
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   })
 }
