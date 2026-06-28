@@ -38,12 +38,33 @@ async function getDefaultPrinter(verbose = true) {
 
     const printers = await new Promise((resolve, reject) => {
       const wmicPath = 'C:\\Windows\\System32\\wbem\\wmic.exe'
-      const fallbackPaths = [wmicPath, 'wmic.exe']
+      const powershellPath = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
+      const fallbackCommands = [
+        { exec: wmicPath, args: ['printer', 'get', 'name'] },
+        { exec: 'wmic.exe', args: ['printer', 'get', 'name'] },
+        {
+          exec: powershellPath,
+          args: [
+            '-NoProfile',
+            '-Command',
+            "$printers = @(Get-CimInstance Win32_Printer | Select-Object -ExpandProperty Name); if ($printers.Count -eq 0) { exit 1 }; $printers | ForEach-Object { $_ }"
+          ]
+        },
+        {
+          exec: powershellPath,
+          args: [
+            '-NoProfile',
+            '-Command',
+            "$printers = @(Get-Printer | Select-Object -ExpandProperty Name); if ($printers.Count -eq 0) { exit 1 }; $printers | ForEach-Object { $_ }"
+          ]
+        }
+      ]
+
       const tryExec = (index) => {
-        if (index >= fallbackPaths.length) return reject(new Error('wmic.exe not found'))
-        const candidate = fallbackPaths[index]
-        execFile(candidate, ['printer', 'get', 'name'], (err, stdout) => {
-          if (err && index + 1 < fallbackPaths.length) return tryExec(index + 1)
+        if (index >= fallbackCommands.length) return reject(new Error('No printer discovery command available'))
+        const candidate = fallbackCommands[index]
+        execFile(candidate.exec, candidate.args, (err, stdout) => {
+          if (err && index + 1 < fallbackCommands.length) return tryExec(index + 1)
           if (err) return reject(err)
           const names = stdout.split('\n')
             .map(l => l.trim())

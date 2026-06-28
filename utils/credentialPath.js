@@ -18,8 +18,31 @@ function getProjectRoot(startDir = __dirname) {
 }
 
 function getCredentialsPath(startDir = __dirname) {
-  const projectRoot = getProjectRoot(startDir)
-  return path.join(projectRoot, 'credentials.json')
+  const candidates = []
+
+  if (process.env.CREDENTIALS_PATH) {
+    candidates.push(path.resolve(process.env.CREDENTIALS_PATH))
+  }
+
+  candidates.push(path.join(process.cwd(), 'credentials.json'))
+
+  if (process.execPath) {
+    candidates.push(path.join(path.dirname(process.execPath), 'credentials.json'))
+  }
+
+  let current = path.resolve(startDir)
+  while (true) {
+    candidates.push(path.join(current, 'credentials.json'))
+    const parent = path.dirname(current)
+    if (parent === current) break
+    current = parent
+  }
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate
+  }
+
+  return path.join(getProjectRoot(startDir), 'credentials.json')
 }
 
 module.exports = { getCredentialsPath, getProjectRoot }
