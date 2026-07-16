@@ -1,0 +1,30 @@
+{
+  "name": "xbuddy-print-agent",
+  "version": "1.0.0",
+  "description": "X Buddy local print agent — reads Google Sheets and auto-prints PDFs",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "pkg index.js --targets node18-win-x64 --output dist/XBuddy-PrintAgent.exe --assets cloudflared.exe"
+  },
+  "pkg": {
+    "assets": [
+      "cloudflared.exe",
+      "credentials.json",
+      "services/**",
+      "utils/**",
+      "node_modules/pdf-to-printer/dist/**"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ]
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "firebase-admin": "^14.1.0",
+    "googleapis": "^140.0.0",
+    "pdf-to-printer": "^5.0.1"
+  }
+}
