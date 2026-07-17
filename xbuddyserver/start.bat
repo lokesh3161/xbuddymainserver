@@ -27,4 +27,3 @@ if exist "cloudflared.exe" (
 )
 
 node index.js
-pause
