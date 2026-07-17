@@ -16,7 +16,7 @@ async function getConfig() {
 
 async function getGasUrl() {
   const config = await getConfig()
-  return config?.gasUrl || 'https://script.google.com/macros/s/AKfycbzEGtssDA6cpNQ2Wg-TexwMFq4fhVeguNzp3EiAUd8W5aTZ4bgYscvGg2_7Ez2z2utr/exec'
+  return config?.gasUrl || 'https://script.google.com/macros/s/AKfycbxaAj1y-Dpd1TU9TKzP1fZrdESqkQDjMpPd7JeKoa0feOAj2Ss2YlWrE_Mhe7ZXfVZb/exec'
 }
 
 async function getTunnelUrl() {
