@@ -1,3 +1,4 @@
+// XBuddy Booth v1.0
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { getAgentEndpoints } from '../utils/agent'
