@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+credentials.json
+credentials/
+*.log
+temp/
+completed/
+pending/
+logs/
