@@ -1,5 +1,8 @@
 {
   "buildCommand": "cd \"xerox buddy\" && npm install && npm run build",
   "outputDirectory": "xerox buddy/dist",
-  "installCommand": "cd \"xerox buddy\" && npm install"
+  "installCommand": "cd \"xerox buddy\" && npm install",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
