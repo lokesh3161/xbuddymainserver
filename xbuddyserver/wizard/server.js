@@ -9,7 +9,6 @@ const BASE_DIR     = process.pkg ? path.dirname(process.execPath) : path.resolve
 const CONFIG_DIR   = path.join(BASE_DIR, 'config')
 const CREDS_DIR    = path.join(BASE_DIR, 'credentials')
 const CONFIG_FILE  = path.join(CONFIG_DIR, 'shop-config.json')
-const CREDS_FILE   = path.join(CREDS_DIR, 'credentials.json')
 
 const app  = express()
 const PORT = 3333
@@ -18,82 +17,41 @@ app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 app.use(express.static(path.join(__dirname)))
 
-// ── Step 1: validate shop details & license ─────────────────────────────────
-app.post('/wizard/validate-shop', async (req, res) => {
-  const { shopName, boothPin, shopId, licenseKey, masterGasUrl } = req.body
-  if (!shopName || shopName.trim().length < 2)
-    return res.json({ ok: false, error: 'Shop name must be at least 2 characters.' })
-  if (!boothPin || !/^\d{4,8}$/.test(boothPin))
-    return res.json({ ok: false, error: 'Booth PIN must be 4–8 digits.' })
-  
-  if (licenseKey && !/^XB-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(licenseKey.trim())) {
-    return res.json({ ok: false, error: 'License Key format must be XB-XXXX-XXXX-XXXX.' })
-  }
+const DEFAULT_MASTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbz_Np3K34IPwNSvzq8aFMKwNHMXkLb-cNcaLmGrnROGuSczlHcwO9OQi4dCBkOo68E85Q/exec'
 
-  // If Master Registry GAS URL is provided, validate license remotely
-  if (masterGasUrl && shopId && licenseKey) {
-    try {
-      const val = await licenseRepository.validateLicense(shopId.trim(), licenseKey.trim(), masterGasUrl.trim())
-      if (!val.valid && val.status !== 'unreachable') {
-        return res.json({ ok: false, error: `License Validation Failed: ${val.message || val.status}` })
-      }
-    } catch (e) {
-      // Degrade gracefully if network fails during wizard validation
+// ── Step 1: Validate Shop ID + License Key (Auto-Retrieves Sheet ID & GAS URL) ──
+app.post('/wizard/verify-provisioning', async (req, res) => {
+  try {
+    const { shopId, licenseKey, masterGasUrl } = req.body || {}
+
+    if (!shopId || !licenseKey) {
+      return res.json({ ok: false, error: 'Shop ID and License Key are required.' })
     }
-  }
 
-  res.json({ ok: true })
-})
+    const targetMasterUrl = (masterGasUrl && masterGasUrl.trim()) || DEFAULT_MASTER_GAS_URL
+    const val = await licenseRepository.validateLicense(shopId.trim(), licenseKey.trim(), targetMasterUrl)
 
-// ── Step 2: receive credentials.json content ───────────────────────────────
-app.post('/wizard/save-credentials', (req, res) => {
-  const { content } = req.body
-  try {
-    const parsed = JSON.parse(content)
-    if (!parsed.type || parsed.type !== 'service_account')
-      return res.json({ ok: false, error: 'Not a valid service account credentials file.' })
-    if (!parsed.client_email || !parsed.private_key)
-      return res.json({ ok: false, error: 'Missing client_email or private_key in credentials.' })
+    if (val && val.valid) {
+      return res.json({
+        ok: true,
+        data: {
+          shopId: val.shopId || shopId.trim(),
+          shopName: val.shopName || 'Xerox Shop',
+          sheetId: val.sheetId || '',
+          gasUrl: val.gasUrl || '',
+          licenseStatus: val.licenseStatus || val.status || 'Active',
+          masterGasUrl: targetMasterUrl
+        }
+      })
+    }
 
-    fs.mkdirSync(CREDS_DIR, { recursive: true })
-    fs.writeFileSync(CREDS_FILE, content, 'utf8')
-    res.json({ ok: true, email: parsed.client_email })
-  } catch {
-    res.json({ ok: false, error: 'Invalid JSON. Please upload the correct credentials.json file.' })
-  }
-})
-
-// ── Step 3: validate Google Sheets access ──────────────────────────────────
-app.post('/wizard/validate-sheets', async (req, res) => {
-  const { sheetId, gasUrl } = req.body
-  if (!sheetId || sheetId.trim().length < 20)
-    return res.json({ ok: false, error: 'Invalid Spreadsheet ID.' })
-  if (!gasUrl || !gasUrl.startsWith('https://script.google.com'))
-    return res.json({ ok: false, error: 'Invalid GAS URL.' })
-
-  if (!fs.existsSync(CREDS_FILE))
-    return res.json({ ok: false, error: 'credentials.json not found. Complete Step 2 first.' })
-
-  try {
-    const { google } = require('googleapis')
-    const auth = new google.auth.GoogleAuth({
-      keyFile: CREDS_FILE,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-    })
-    const sheets = google.sheets({ version: 'v4', auth })
-    await sheets.spreadsheets.get({ spreadsheetId: sheetId.trim() })
-    res.json({ ok: true })
+    return res.json({ ok: false, error: val.message || 'Invalid Shop ID or License Key' })
   } catch (err) {
-    const msg = err.message || ''
-    if (msg.includes('not found') || msg.includes('404'))
-      return res.json({ ok: false, error: 'Spreadsheet not found. Check the ID and share it with the service account.' })
-    if (msg.includes('permission') || msg.includes('403'))
-      return res.json({ ok: false, error: 'Permission denied. Share the sheet with the service account email.' })
-    res.json({ ok: false, error: 'Could not connect to Google Sheets: ' + msg.split('\n')[0] })
+    return res.json({ ok: false, error: `Validation error: ${err.message}` })
   }
 })
 
-// ── Step 4: detect printers ────────────────────────────────────────────────
+// ── Detect printers ────────────────────────────────────────────────
 app.get('/wizard/detect-printers', (req, res) => {
   const candidates = [
     { exec: 'C:\\Windows\\System32\\wbem\\wmic.exe', args: ['printer', 'get', 'name'] },
@@ -116,11 +74,11 @@ app.get('/wizard/detect-printers', (req, res) => {
   tryNext(0)
 })
 
-// ── Step 5: save final config ──────────────────────────────────────────────
+// ── Finish & Auto-write shop-config.json ──────────────────────────────
 app.post('/wizard/finish', (req, res) => {
   const { shopName, shopId, licenseKey, masterGasUrl, sheetId, gasUrl, boothPin, printer } = req.body
-  if (!shopName || !sheetId || !gasUrl || !boothPin)
-    return res.json({ ok: false, error: 'Missing required fields.' })
+  if (!shopId || !licenseKey)
+    return res.json({ ok: false, error: 'Shop ID and License Key are required.' })
 
   try {
     fs.mkdirSync(CONFIG_DIR, { recursive: true })
@@ -130,13 +88,13 @@ app.post('/wizard/finish', (req, res) => {
     fs.mkdirSync(path.join(BASE_DIR, 'temp'),      { recursive: true })
 
     const config = {
-      shopName:     shopName.trim(),
-      shopId:       (shopId && shopId.trim()) || ('XB-' + Date.now().toString(36).toUpperCase()),
-      licenseKey:   (licenseKey && licenseKey.trim()) || licenseRepository.generateLicenseKeyFormat(),
-      masterGasUrl: (masterGasUrl && masterGasUrl.trim()) || '',
-      sheetId:      sheetId.trim(),
-      gasUrl:       gasUrl.trim(),
-      boothPin:     boothPin.trim(),
+      shopName:     (shopName && shopName.trim()) || 'Xerox Shop',
+      shopId:       shopId.trim(),
+      licenseKey:   licenseKey.trim(),
+      masterGasUrl: (masterGasUrl && masterGasUrl.trim()) || DEFAULT_MASTER_GAS_URL,
+      sheetId:      (sheetId && sheetId.trim()) || '',
+      gasUrl:       (gasUrl && gasUrl.trim()) || DEFAULT_MASTER_GAS_URL,
+      boothPin:     (boothPin && boothPin.trim()) || '1234',
       printer:      printer || '',
       setupDone:    true,
       createdAt:    new Date().toISOString(),

@@ -1,6 +1,7 @@
 /**
  * registryRepository.js
- * Interface for founder Master Registry operations: heartbeat, revenue rollups, aggregate stats.
+ * Comprehensive interface for Master Registry communication:
+ * customer registration, signups, license validation, provisioning, heartbeats, and rollups.
  */
 
 const adapter = require('./adapters/GoogleSheetsAdapter')
@@ -29,11 +30,59 @@ function getMasterGasUrl() {
 
 class RegistryRepository {
   /**
+   * Register a new customer signup (Pending Setup)
+   */
+  async registerCustomer(customerData, masterGasUrl) {
+    const url = masterGasUrl || getMasterGasUrl()
+    return await adapter.registerCustomerRemote(url, customerData)
+  }
+
+  /**
+   * Fetch all signups awaiting provisioning (Pending Setup)
+   */
+  async getPendingSignups(masterGasUrl) {
+    const url = masterGasUrl || getMasterGasUrl()
+    return await adapter.getPendingSignupsRemote(url)
+  }
+
+  /**
+   * Validate Shop ID & License Key against Master Registry
+   */
+  async validateLicense(shopId, licenseKey, masterGasUrl) {
+    const url = masterGasUrl || getMasterGasUrl()
+    return await adapter.validateLicenseRemote(url, shopId, licenseKey)
+  }
+
+  /**
+   * Provision a new shop record in Master Registry
+   */
+  async provisionShop(shopData, masterGasUrl) {
+    const url = masterGasUrl || getMasterGasUrl()
+    return await adapter.provisionShopRemote(url, shopData)
+  }
+
+  /**
+   * Get all registered shops
+   */
+  async listShops(masterGasUrl) {
+    const url = masterGasUrl || getMasterGasUrl()
+    return await adapter.getMasterShops(url)
+  }
+
+  /**
+   * Update shop license status (Active, Suspended, Expired)
+   */
+  async updateShopStatus(shopId, status, masterGasUrl) {
+    const url = masterGasUrl || getMasterGasUrl()
+    return await adapter.updateShopStatusRemote(url, shopId, status)
+  }
+
+  /**
    * Post heartbeat ping to Master Registry
    */
-  async postHeartbeat(shopId, printerStatus, masterGasUrl) {
+  async postHeartbeat(shopId, printerStatus, currentVersion, pendingJobs, masterGasUrl) {
     const url = masterGasUrl || getMasterGasUrl()
-    return await adapter.postHeartbeatRemote(url, shopId, printerStatus)
+    return await adapter.postHeartbeatRemote(url, shopId, printerStatus, currentVersion, pendingJobs)
   }
 
   /**

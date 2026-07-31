@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>XBuddy Setup Wizard</title>
+<title>XBuddy Shop Setup Wizard</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: #07070d;
     color: #e2e8f0;
     min-height: 100vh;
@@ -18,7 +18,7 @@
   }
   .card {
     width: 100%;
-    max-width: 560px;
+    max-width: 540px;
     background: #0f1117;
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 24px;
@@ -28,17 +28,18 @@
   .logo {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     margin-bottom: 32px;
   }
   .logo-icon {
-    width: 36px; height: 36px;
+    width: 40px; height: 40px;
     background: #7c3aed;
-    border-radius: 10px;
+    border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 18px; color: #fff;
+    font-weight: 800; font-size: 20px; color: #fff;
+    box-shadow: 0 8px 20px rgba(124,58,237,0.3);
   }
-  .logo-text { font-size: 20px; font-weight: 700; }
+  .logo-text { font-size: 22px; font-weight: 700; color: #fff; }
 
   /* Progress bar */
   .progress-wrap { margin-bottom: 32px; }
@@ -49,12 +50,12 @@
     margin-bottom: 10px;
   }
   .step-dot {
-    width: 28px; height: 28px;
+    width: 32px; height: 32px;
     border-radius: 50%;
     border: 2px solid rgba(255,255,255,0.12);
     background: transparent;
     display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; color: #64748b;
+    font-size: 12px; font-weight: 700; color: #64748b;
     flex-shrink: 0;
     transition: all 0.3s;
   }
@@ -66,19 +67,19 @@
     transition: background 0.3s;
   }
   .step-line.done { background: #10b981; }
-  .progress-label { font-size: 12px; color: #64748b; }
+  .progress-label { font-size: 13px; color: #64748b; }
   .progress-label span { color: #a78bfa; font-weight: 600; }
 
   /* Step panels */
   .step-panel { display: none; }
   .step-panel.active { display: block; }
 
-  h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
-  .subtitle { font-size: 14px; color: #64748b; margin-bottom: 28px; }
+  h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #fff; }
+  .subtitle { font-size: 14px; color: #64748b; margin-bottom: 24px; line-height: 1.5; }
 
   label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; margin-top: 16px; }
   label:first-of-type { margin-top: 0; }
-  input[type="text"], input[type="password"], input[type="number"], textarea {
+  input[type="text"], input[type="password"] {
     width: 100%;
     background: #1a1d27;
     border: 1px solid rgba(255,255,255,0.1);
@@ -89,29 +90,9 @@
     outline: none;
     transition: border-color 0.2s;
   }
-  input:focus, textarea:focus { border-color: #7c3aed; }
-  textarea { resize: none; height: 80px; font-family: monospace; font-size: 12px; }
+  input:focus { border-color: #7c3aed; }
 
-  .file-drop {
-    border: 2px dashed rgba(255,255,255,0.1);
-    border-radius: 14px;
-    padding: 32px 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s;
-    position: relative;
-  }
-  .file-drop:hover, .file-drop.drag { border-color: #7c3aed; background: rgba(124,58,237,0.05); }
-  .file-drop input[type="file"] {
-    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
-  }
-  .file-drop .icon { font-size: 32px; margin-bottom: 8px; }
-  .file-drop .hint { font-size: 13px; color: #64748b; }
-  .file-drop .hint strong { color: #a78bfa; }
-  .file-loaded { border-color: #10b981 !important; background: rgba(16,185,129,0.05) !important; }
-  .file-loaded .hint { color: #10b981 !important; }
-
-  .printer-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+  .printer-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
   .printer-item {
     display: flex; align-items: center; gap: 12px;
     background: #1a1d27;
@@ -130,7 +111,7 @@
     border-radius: 12px;
     padding: 12px 14px;
     font-size: 13px;
-    margin-top: 14px;
+    margin-top: 16px;
     display: none;
   }
   .alert.error   { background: rgba(239,68,68,0.1);  border: 1px solid rgba(239,68,68,0.2);  color: #fca5a5; display: block; }
@@ -170,38 +151,18 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Done screen */
   .done-screen { text-align: center; padding: 20px 0; }
   .done-icon { font-size: 56px; margin-bottom: 16px; }
   .done-screen h2 { font-size: 26px; margin-bottom: 8px; }
   .done-screen p { color: #64748b; font-size: 14px; line-height: 1.6; }
   .done-screen .closing { margin-top: 20px; font-size: 13px; color: #a78bfa; }
-
-  .service-email {
-    background: #1a1d27;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 12px;
-    font-family: monospace;
-    color: #a78bfa;
-    margin-top: 10px;
-    word-break: break-all;
-  }
-  .share-hint {
-    font-size: 12px;
-    color: #64748b;
-    margin-top: 8px;
-    line-height: 1.5;
-  }
-  .share-hint strong { color: #fbbf24; }
 </style>
 </head>
 <body>
 <div class="card">
   <div class="logo">
     <div class="logo-icon">X</div>
-    <span class="logo-text">XBuddy Setup</span>
+    <span class="logo-text">XBuddy Setup Wizard</span>
   </div>
 
   <!-- Progress -->
@@ -212,109 +173,68 @@
       <div class="step-dot" id="dot-2">2</div>
       <div class="step-line" id="line-2"></div>
       <div class="step-dot" id="dot-3">3</div>
-      <div class="step-line" id="line-3"></div>
-      <div class="step-dot" id="dot-4">4</div>
-      <div class="step-line" id="line-4"></div>
-      <div class="step-dot" id="dot-5">5</div>
     </div>
-    <div class="progress-label" id="progress-label">Step <span>1</span> of 5</div>
+    <div class="progress-label" id="progress-label">Step <span>1</span> of 3: Activation</div>
   </div>
 
-  <!-- Step 1: Shop Details -->
+  <!-- Step 1: Shop ID & License Key -->
   <div class="step-panel active" id="panel-1">
-    <h2>Shop & License Details</h2>
-    <p class="subtitle">Enter your print shop's basic information and license key.</p>
-    <label>Shop Name</label>
-    <input type="text" id="shopName" placeholder="e.g. Sri Sai Xerox" />
-    <label>Shop ID <span style="color:#64748b;font-size:11px">(e.g. XB-001)</span></label>
-    <input type="text" id="shopId" placeholder="XB-001" />
-    <label>License Key <span style="color:#64748b;font-size:11px">(XB-XXXX-XXXX-XXXX)</span></label>
-    <input type="text" id="licenseKey" placeholder="XB-A1B2-C3D4-E5F6" />
-    <label>Master Registry GAS URL <span style="color:#64748b;font-size:11px">(Optional)</span></label>
-    <input type="text" id="masterGasUrl" placeholder="https://script.google.com/macros/s/..." />
+    <h2>Shop Activation</h2>
+    <p class="subtitle">Enter the Shop ID and License Key provided by your founder administrator.</p>
+
+    <label>Shop ID</label>
+    <input type="text" id="shopId" placeholder="e.g. SHOP0001" />
+
+    <label>License Key</label>
+    <input type="text" id="licenseKey" placeholder="e.g. XB-A1B2-C3D4-E5F6" />
+
     <label>Booth PIN <span style="color:#64748b;font-size:11px">(4–8 digits, used at the booth)</span></label>
-    <input type="password" id="boothPin" placeholder="e.g. 2580" maxlength="8" />
+    <input type="password" id="boothPin" placeholder="e.g. 1234" value="1234" maxlength="8" />
+
     <div class="alert" id="alert-1"></div>
+
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="step1Next()">Continue →</button>
+      <button class="btn btn-primary" id="btn-1" onclick="step1Verify()">Verify & Continue →</button>
     </div>
   </div>
 
-  <!-- Step 2: Credentials -->
+  <!-- Step 2: Printer Selection -->
   <div class="step-panel" id="panel-2">
-    <h2>Google Credentials</h2>
-    <p class="subtitle">Upload your Google Service Account credentials.json file.</p>
-    <div class="file-drop" id="fileDrop">
-      <input type="file" id="credFile" accept=".json" onchange="handleFileSelect(this)" />
-      <div class="icon">📄</div>
-      <div class="hint">Click or drag <strong>credentials.json</strong> here</div>
-    </div>
-    <div class="alert" id="alert-2"></div>
-    <div class="service-email" id="serviceEmail" style="display:none"></div>
-    <div class="btn-row">
-      <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
-      <button class="btn btn-primary" id="btn-2" onclick="step2Next()" disabled>Continue →</button>
-    </div>
-  </div>
-
-  <!-- Step 3: Google Sheets -->
-  <div class="step-panel" id="panel-3">
-    <h2>Google Sheets</h2>
-    <p class="subtitle">Connect your order spreadsheet and GAS web app.</p>
-    <label>Spreadsheet ID</label>
-    <input type="text" id="sheetId" placeholder="1ylqiGtvtYfPtCOvKMzOLVETZxiNQ4IKAFaTmKBHH6Sk" />
-    <p class="share-hint">Open your Google Sheet → Share → Add the service account email with <strong>Editor</strong> access.</p>
-    <label>GAS Web App URL</label>
-    <input type="text" id="gasUrl" placeholder="https://script.google.com/macros/s/..." />
-    <div class="alert" id="alert-3"></div>
-    <div class="btn-row">
-      <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
-      <button class="btn btn-primary" id="btn-3" onclick="step3Next()">Verify & Continue →</button>
-    </div>
-  </div>
-
-  <!-- Step 4: Printer -->
-  <div class="step-panel" id="panel-4">
-    <h2>Select Printer</h2>
-    <p class="subtitle">Choose the printer connected to this computer.</p>
+    <h2>Printer Selection</h2>
+    <p class="subtitle">Select the primary printer connected to this shop computer.</p>
     <div id="printerLoading" class="alert info">
       <span class="spinner"></span> Detecting printers...
     </div>
     <div class="printer-list" id="printerList"></div>
-    <div class="alert" id="alert-4"></div>
+    <div class="alert" id="alert-2"></div>
+
     <div class="btn-row">
-      <button class="btn btn-ghost" onclick="goTo(3)">← Back</button>
-      <button class="btn btn-primary" id="btn-4" onclick="step4Next()" disabled>Continue →</button>
+      <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
+      <button class="btn btn-primary" id="btn-2" onclick="step2Finish()">Complete Setup ✓</button>
     </div>
   </div>
 
-  <!-- Step 5: Confirm & Finish -->
-  <div class="step-panel" id="panel-5">
-    <h2>Confirm Setup</h2>
-    <p class="subtitle">Review your configuration before saving.</p>
-    <div id="summaryBox" style="background:#1a1d27;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:16px;font-size:13px;line-height:2;"></div>
-    <div class="alert" id="alert-5"></div>
-    <div class="btn-row">
-      <button class="btn btn-ghost" onclick="goTo(4)">← Back</button>
-      <button class="btn btn-primary" id="btn-5" onclick="step5Finish()">✓ Save & Start XBuddy</button>
-    </div>
-  </div>
-
-  <!-- Done -->
+  <!-- Step 3: Finish Screen -->
   <div class="step-panel" id="panel-done">
     <div class="done-screen">
       <div class="done-icon">🎉</div>
-      <h2>You're all set!</h2>
-      <p>XBuddy has been configured successfully.<br>The print agent is starting now.</p>
-      <p class="closing">This window will close automatically...</p>
+      <h2>Setup Completed!</h2>
+      <p id="doneDetails">Your shop agent is configured and ready to handle print orders.</p>
+      <p class="closing">Launching print agent and closing wizard...</p>
     </div>
   </div>
 </div>
 
 <script>
 const state = {
-  shopName: '', boothPin: '', sheetId: '', gasUrl: '',
-  printer: '', credContent: '', serviceEmail: '',
+  shopId: '',
+  licenseKey: '',
+  boothPin: '1234',
+  shopName: '',
+  sheetId: '',
+  gasUrl: '',
+  masterGasUrl: '',
+  printer: '',
   currentStep: 1
 }
 
@@ -323,17 +243,26 @@ function showAlert(id, msg, type = 'error') {
   el.className = 'alert ' + type
   el.textContent = msg
 }
+
 function clearAlert(id) {
   const el = document.getElementById(id)
   el.className = 'alert'
   el.textContent = ''
 }
 
-function setLoading(btnId, loading, label) {
-  const btn = document.getElementById(btnId)
-  if (!btn) return
-  btn.disabled = loading
-  btn.innerHTML = loading ? `<span class="spinner"></span> Checking...` : label
+function updateProgress(step) {
+  for (let i = 1; i <= 3; i++) {
+    const dot  = document.getElementById('dot-' + i)
+    const line = document.getElementById('line-' + i)
+    if (dot) {
+      dot.className   = 'step-dot' + (i < step ? ' done' : i === step ? ' active' : '')
+      dot.textContent = i < step ? '✓' : i
+    }
+    if (line) line.className = 'step-line' + (i < step ? ' done' : '')
+  }
+  const label = document.getElementById('progress-label')
+  const stepNames = ['Activation', 'Printer Selection', 'Complete']
+  label.innerHTML = `Step <span>${step}</span> of 3: ${stepNames[step-1] || ''}`
 }
 
 function goTo(step) {
@@ -341,115 +270,70 @@ function goTo(step) {
   state.currentStep = step
   document.getElementById('panel-' + step).classList.add('active')
   updateProgress(step)
-  if (step === 4) loadPrinters()
-  if (step === 5) buildSummary()
+  if (step === 2) loadPrinters()
 }
 
-function updateProgress(step) {
-  for (let i = 1; i <= 5; i++) {
-    const dot  = document.getElementById('dot-' + i)
-    const line = document.getElementById('line-' + i)
-    dot.className  = 'step-dot' + (i < step ? ' done' : i === step ? ' active' : '')
-    dot.textContent = i < step ? '✓' : i
-    if (line) line.className = 'step-line' + (i < step ? ' done' : '')
-  }
-  const label = document.getElementById('progress-label')
-  label.innerHTML = `Step <span>${step}</span> of 5`
-}
-
-// ── Step 1 ──────────────────────────────────────────────────────────────────
-async function step1Next() {
+// ── Step 1: Verify Shop ID + License Key ──
+async function step1Verify() {
   clearAlert('alert-1')
-  state.shopName = document.getElementById('shopName').value.trim()
   state.shopId = document.getElementById('shopId').value.trim()
   state.licenseKey = document.getElementById('licenseKey').value.trim()
-  state.masterGasUrl = document.getElementById('masterGasUrl').value.trim()
-  state.boothPin = document.getElementById('boothPin').value.trim()
+  state.boothPin = document.getElementById('boothPin').value.trim() || '1234'
 
-  const btn = document.querySelector('#panel-1 .btn-primary')
-  btn.disabled = true
-  btn.innerHTML = '<span class="spinner"></span> Checking...'
-  const res = await fetch('/wizard/validate-shop', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      shopName: state.shopName,
-      shopId: state.shopId,
-      licenseKey: state.licenseKey,
-      masterGasUrl: state.masterGasUrl,
-      boothPin: state.boothPin,
-    })
-  }).then(r => r.json()).catch(() => ({ ok: false, error: 'Network error.' }))
-  btn.disabled = false
-  btn.textContent = 'Continue →'
-  if (!res.ok) return showAlert('alert-1', res.error)
-  goTo(2)
-}
-
-// ── Step 2 ──────────────────────────────────────────────────────────────────
-function handleFileSelect(input) {
-  const file = input.files[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = async (e) => {
-    state.credContent = e.target.result
-    clearAlert('alert-2')
-    document.getElementById('btn-2').disabled = true
-    document.getElementById('btn-2').innerHTML = '<span class="spinner"></span> Validating...'
-    const res = await fetch('/wizard/save-credentials', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: state.credContent })
-    }).then(r => r.json()).catch(() => ({ ok: false, error: 'Network error.' }))
-    document.getElementById('btn-2').innerHTML = 'Continue →'
-    if (!res.ok) {
-      document.getElementById('btn-2').disabled = true
-      return showAlert('alert-2', res.error)
-    }
-    state.serviceEmail = res.email
-    const drop = document.getElementById('fileDrop')
-    drop.classList.add('file-loaded')
-    drop.querySelector('.hint').innerHTML = `✓ <strong>${file.name}</strong> loaded`
-    const emailEl = document.getElementById('serviceEmail')
-    emailEl.style.display = 'block'
-    emailEl.textContent = '📧 Service account: ' + res.email
-    showAlert('alert-2', 'Credentials validated successfully.', 'success')
-    document.getElementById('btn-2').disabled = false
+  if (!state.shopId || !state.licenseKey) {
+    return showAlert('alert-1', 'Please enter both Shop ID and License Key.')
   }
-  reader.readAsText(file)
+
+  const btn = document.getElementById('btn-1')
+  btn.disabled = true
+  btn.innerHTML = '<span class="spinner"></span> Validating with Master Registry...'
+
+  try {
+    const res = await fetch('/wizard/verify-provisioning', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shopId: state.shopId,
+        licenseKey: state.licenseKey
+      })
+    }).then(r => r.json())
+
+    btn.disabled = false
+    btn.innerHTML = 'Verify & Continue →'
+
+    if (!res.ok) {
+      return showAlert('alert-1', res.error || 'Invalid Shop ID or License Key.')
+    }
+
+    // Auto-populate retrieved configuration data
+    state.shopName = res.data.shopName || 'Xerox Shop'
+    state.sheetId = res.data.sheetId || ''
+    state.gasUrl = res.data.gasUrl || ''
+    state.masterGasUrl = res.data.masterGasUrl || ''
+
+    showAlert('alert-1', `Validated successfully! Shop: ${state.shopName}`, 'success')
+    setTimeout(() => goTo(2), 600)
+  } catch (err) {
+    btn.disabled = false
+    btn.innerHTML = 'Verify & Continue →'
+    showAlert('alert-1', 'Could not reach validation server. Please check internet connection.')
+  }
 }
 
-async function step2Next() {
-  goTo(3)
-}
-
-// ── Step 3 ──────────────────────────────────────────────────────────────────
-async function step3Next() {
-  clearAlert('alert-3')
-  state.sheetId = document.getElementById('sheetId').value.trim()
-  state.gasUrl  = document.getElementById('gasUrl').value.trim()
-  setLoading('btn-3', true)
-  const res = await fetch('/wizard/validate-sheets', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sheetId: state.sheetId, gasUrl: state.gasUrl })
-  }).then(r => r.json()).catch(() => ({ ok: false, error: 'Network error.' }))
-  setLoading('btn-3', false, 'Verify & Continue →')
-  if (!res.ok) return showAlert('alert-3', res.error)
-  showAlert('alert-3', 'Google Sheets access confirmed ✓', 'success')
-  setTimeout(() => goTo(4), 800)
-}
-
-// ── Step 4 ──────────────────────────────────────────────────────────────────
+// ── Step 2: Printer Detection ──
 async function loadPrinters() {
   document.getElementById('printerLoading').style.display = 'block'
   document.getElementById('printerList').innerHTML = ''
-  clearAlert('alert-4')
-  document.getElementById('btn-4').disabled = true
+  clearAlert('alert-2')
+
   const res = await fetch('/wizard/detect-printers').then(r => r.json()).catch(() => ({ ok: false, printers: [] }))
   document.getElementById('printerLoading').style.display = 'none'
+
   if (!res.ok || !res.printers.length) {
-    showAlert('alert-4', 'No printers detected. You can continue and connect a printer later.')
-    document.getElementById('btn-4').disabled = false
+    showAlert('alert-2', 'No printers detected. You can proceed and connect a printer later.', 'info')
     return
   }
+
   const list = document.getElementById('printerList')
   res.printers.forEach((p, i) => {
     const item = document.createElement('label')
@@ -458,7 +342,6 @@ async function loadPrinters() {
     list.appendChild(item)
     if (i === 0) state.printer = p
   })
-  document.getElementById('btn-4').disabled = false
 }
 
 function selectPrinter(name, el) {
@@ -467,78 +350,47 @@ function selectPrinter(name, el) {
   state.printer = name
 }
 
-function step4Next() {
-  goTo(5)
-}
+// ── Finish Setup ──
+async function step2Finish() {
+  clearAlert('alert-2')
+  const btn = document.getElementById('btn-2')
+  btn.disabled = true
+  btn.innerHTML = '<span class="spinner"></span> Saving Configuration...'
 
-// ── Step 5 ──────────────────────────────────────────────────────────────────
-function buildSummary() {
-  const rows = [
-    ['Shop Name',   state.shopName],
-    ['Shop ID',     state.shopId || '(Auto-generated)'],
-    ['License Key', state.licenseKey || '(Auto-generated)'],
-    ['Booth PIN',   '••••'],
-    ['Spreadsheet', state.sheetId.slice(0, 20) + '...'],
-    ['GAS URL',     state.gasUrl.slice(0, 40) + '...'],
-    ['Printer',     state.printer || '(none selected)'],
-    ['Credentials', state.serviceEmail || 'Loaded'],
-  ]
-  document.getElementById('summaryBox').innerHTML = rows.map(([k, v]) =>
-    `<div style="display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid rgba(255,255,255,0.05);padding:4px 0">
-      <span style="color:#64748b">${k}</span>
-      <span style="color:#e2e8f0;text-align:right;word-break:break-all">${v}</span>
-    </div>`
-  ).join('')
-}
+  try {
+    const res = await fetch('/wizard/finish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shopName: state.shopName,
+        shopId: state.shopId,
+        licenseKey: state.licenseKey,
+        masterGasUrl: state.masterGasUrl,
+        sheetId: state.sheetId,
+        gasUrl: state.gasUrl,
+        boothPin: state.boothPin,
+        printer: state.printer
+      })
+    }).then(r => r.json())
 
-async function step5Finish() {
-  clearAlert('alert-5')
-  document.getElementById('btn-5').disabled = true
-  document.getElementById('btn-5').innerHTML = '<span class="spinner"></span> Saving...'
-  const res = await fetch('/wizard/finish', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      shopName:     state.shopName,
-      shopId:       state.shopId,
-      licenseKey:   state.licenseKey,
-      masterGasUrl: state.masterGasUrl,
-      sheetId:      state.sheetId,
-      gasUrl:       state.gasUrl,
-      boothPin:     state.boothPin,
-      printer:      state.printer,
-    })
-  }).then(r => r.json()).catch(() => ({ ok: false, error: 'Network error.' }))
-  if (!res.ok) {
-    document.getElementById('btn-5').disabled = false
-    document.getElementById('btn-5').textContent = '✓ Save & Start XBuddy'
-    return showAlert('alert-5', res.error)
+    if (!res.ok) {
+      btn.disabled = false
+      btn.innerHTML = 'Complete Setup ✓'
+      return showAlert('alert-2', res.error || 'Failed to save configuration.')
+    }
+
+    document.getElementById('panel-2').classList.remove('active')
+    document.getElementById('panel-done').classList.add('active')
+    updateProgress(3)
+    document.getElementById('doneDetails').textContent = `Configuration saved for ${state.shopName} (${state.shopId}).`
+
+    setTimeout(() => window.close(), 3000)
+  } catch (err) {
+    btn.disabled = false
+    btn.innerHTML = 'Complete Setup ✓'
+    showAlert('alert-2', 'Error saving configuration: ' + err.message)
   }
-  // Show done screen
-  document.getElementById('panel-5').classList.remove('active')
-  document.getElementById('panel-done').classList.add('active')
-  document.querySelectorAll('.step-dot').forEach(d => { d.className = 'step-dot done'; d.textContent = '✓' })
-  document.querySelectorAll('.step-line').forEach(l => l.className = 'step-line done')
-  document.getElementById('progress-label').innerHTML = '<span style="color:#10b981">Setup Complete ✓</span>'
-  setTimeout(() => window.close(), 4000)
 }
-
-
-// Drag-and-drop support
-const drop = document.getElementById('fileDrop')
-drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag') })
-drop.addEventListener('dragleave', () => drop.classList.remove('drag'))
-drop.addEventListener('drop', e => {
-  e.preventDefault()
-  drop.classList.remove('drag')
-  const file = e.dataTransfer.files[0]
-  if (file) {
-    const input = document.getElementById('credFile')
-    const dt = new DataTransfer()
-    dt.items.add(file)
-    input.files = dt.files
-    handleFileSelect(input)
-  }
-})
 </script>
 </body>
 </html>

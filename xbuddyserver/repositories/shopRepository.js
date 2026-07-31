@@ -92,6 +92,28 @@ class ShopRepository {
     }
     return await adapter.createShopRemote(masterGasUrl, shopData)
   }
+
+  /**
+   * Post heartbeat ping to Master Registry
+   */
+  async postHeartbeat(shopId, printerStatus, currentVersion, pendingJobs, masterGasUrl) {
+    if (!masterGasUrl) {
+      const config = this.getLocalShop()
+      masterGasUrl = config?.masterGasUrl
+    }
+    return await adapter.postHeartbeatRemote(masterGasUrl, shopId, printerStatus, currentVersion, pendingJobs)
+  }
+
+  /**
+   * Post daily summary rollup
+   */
+  async postRollup(shopId, date, orderCount, totalRevenue, masterGasUrl) {
+    if (!masterGasUrl) {
+      const config = this.getLocalShop()
+      masterGasUrl = config?.masterGasUrl
+    }
+    return await adapter.postRollupRemote(masterGasUrl, shopId, date, orderCount, totalRevenue)
+  }
 }
 
 module.exports = new ShopRepository()

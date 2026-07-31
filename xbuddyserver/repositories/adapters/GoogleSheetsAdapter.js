@@ -27,22 +27,6 @@ function getShopConfig() {
   }
 }
 
-function getAuth() {
-  const keyFile = getCredentialsPath(BASE_DIR)
-  if (!fs.existsSync(keyFile)) {
-    if (!_credsMissing) {
-      logger.warn('[GoogleSheetsAdapter] credentials.json not found — using GAS fallback.')
-      _credsMissing = true
-    }
-    return null
-  }
-  _credsMissing = false
-  return new google.auth.GoogleAuth({
-    keyFile,
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  })
-}
-
 class GoogleSheetsAdapter {
   constructor() {
     this.COL = {
@@ -188,7 +172,35 @@ class GoogleSheetsAdapter {
     }
   }
 
-  // --- MASTER REGISTRY LICENSE & SHOP OPERATIONS ---
+  // --- MASTER REGISTRY REMOTE OPERATIONS ---
+
+  async registerCustomerRemote(masterGasUrl, customerData) {
+    if (!masterGasUrl) return { success: false, error: 'No Master GAS URL configured' }
+    try {
+      const params = new URLSearchParams({
+        action: 'registerCustomer',
+        ...customerData,
+      })
+      const res = await axios.get(`${masterGasUrl}?${params.toString()}`, { timeout: 10000 })
+      return res.data
+    } catch (err) {
+      logger.error(`[GoogleSheetsAdapter] registerCustomerRemote error: ${err.message}`)
+      return { success: false, error: err.message }
+    }
+  }
+
+  async getPendingSignupsRemote(masterGasUrl) {
+    if (!masterGasUrl) return []
+    try {
+      const res = await axios.get(`${masterGasUrl}?action=getPendingSignups`, { timeout: 8000 })
+      if (res.data && res.data.success) {
+        return res.data.data?.signups || res.data.signups || []
+      }
+    } catch (err) {
+      logger.error(`[GoogleSheetsAdapter] getPendingSignupsRemote error: ${err.message}`)
+    }
+    return []
+  }
 
   async validateLicenseRemote(masterGasUrl, shopId, licenseKey) {
     if (!masterGasUrl) return { success: false, valid: false, error: 'No Master GAS URL configured' }
@@ -235,28 +247,34 @@ class GoogleSheetsAdapter {
     }
   }
 
-  async createShopRemote(masterGasUrl, shopData) {
+  async provisionShopRemote(masterGasUrl, shopData) {
     if (!masterGasUrl) return { success: false, error: 'No Master GAS URL' }
     try {
       const params = new URLSearchParams({
-        action: 'createShop',
+        action: 'provisionShop',
         ...shopData,
       })
-      const res = await axios.get(`${masterGasUrl}?${params.toString()}`, { timeout: 8000 })
+      const res = await axios.get(`${masterGasUrl}?${params.toString()}`, { timeout: 10000 })
       return res.data
     } catch (err) {
-      logger.error(`[GoogleSheetsAdapter] createShopRemote error: ${err.message}`)
+      logger.error(`[GoogleSheetsAdapter] provisionShopRemote error: ${err.message}`)
       return { success: false, error: err.message }
     }
   }
 
-  async postHeartbeatRemote(masterGasUrl, shopId, printerStatus) {
+  async createShopRemote(masterGasUrl, shopData) {
+    return this.provisionShopRemote(masterGasUrl, shopData)
+  }
+
+  async postHeartbeatRemote(masterGasUrl, shopId, printerStatus, currentVersion, pendingJobs) {
     if (!masterGasUrl || !shopId) return false
     try {
       const params = new URLSearchParams({
         action: 'postHeartbeat',
         shopId,
         printerStatus: printerStatus || 'online',
+        currentVersion: currentVersion || '1.0.0',
+        pendingJobs: String(pendingJobs || 0)
       })
       const res = await axios.get(`${masterGasUrl}?${params.toString()}`, { timeout: 6000 })
       return res.data?.success || false

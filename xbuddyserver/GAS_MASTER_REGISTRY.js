@@ -2,26 +2,22 @@
  * XBuddy Master Registry — Serverless API Layer (Google Apps Script)
  * Bound to: "XBuddy-Master-Registry" Google Sheet
  * 
- * Section 3 & Section 6 Standardized API Implementation
+ * Schema Tabs Managed:
+ * 1. Shops (16 columns)
+ * 2. Signups (8 columns - Pending Setup)
+ * 3. Rollups (5 columns)
+ * 4. Request Logs (4 columns - Rate limiting & Anti-brute-force)
  */
 
-const SHOPS_SHEET_NAME   = "Shops";
-const ROLLUPS_SHEET_NAME = "Rollups";
+const SHOPS_SHEET_NAME    = "Shops";
+const SIGNUPS_SHEET_NAME  = "Signups";
+const ROLLUPS_SHEET_NAME  = "Rollups";
+const LOGS_SHEET_NAME     = "Request Logs";
 
 function doGet(e) {
   try {
     const p = e ? (e.parameter || {}) : {};
-    const action = p.action;
-    if (action === 'validateLicense')  return validateLicense(p);
-    if (action === 'getShop')           return getShop(p);
-    if (action === 'listShops')          return listShops();
-    if (action === 'updateShopStatus') return updateShopStatus(p);
-    if (action === 'createShop')        return createShop(p);
-    if (action === 'postHeartbeat')     return postHeartbeat(p);
-    if (action === 'postRollup')        return postRollup(p);
-    if (action === 'getAggregateStats') return getAggregateStats();
-
-    return sendResponse(true, { message: "XBuddy Master Registry API is live!" }, null);
+    return handleMasterRequest(p);
   } catch (err) {
     return sendResponse(false, null, err.toString());
   }
@@ -36,49 +32,157 @@ function doPost(e) {
         p = Object.assign({}, p, body);
       } catch (err) {}
     }
-    const action = p.action;
-    if (action === 'validateLicense')  return validateLicense(p);
-    if (action === 'updateShopStatus') return updateShopStatus(p);
-    if (action === 'createShop')        return createShop(p);
-    if (action === 'postHeartbeat')     return postHeartbeat(p);
-    if (action === 'postRollup')        return postRollup(p);
-
-    return sendResponse(true, { message: "POST received" }, null);
+    return handleMasterRequest(p);
   } catch (err) {
     return sendResponse(false, null, err.toString());
   }
 }
 
-function getShopsSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SHOPS_SHEET_NAME);
+function handleMasterRequest(p) {
+  const action = p.action || '';
+
+  if (action === 'registerCustomer')   return registerCustomer(p);
+  if (action === 'getPendingSignups')  return getPendingSignups();
+  if (action === 'validateLicense')    return validateLicense(p);
+  if (action === 'provisionShop')      return provisionShop(p);
+  if (action === 'getShop')            return getShop(p);
+  if (action === 'listShops')           return listShops();
+  if (action === 'updateShopStatus')  return updateShopStatus(p);
+  if (action === 'createShop')         return provisionShop(p); // Alias
+  if (action === 'postHeartbeat')      return postHeartbeat(p);
+  if (action === 'postRollup')         return postRollup(p);
+  if (action === 'getAggregateStats')  return getAggregateStats();
+
+  return sendResponse(true, { message: "XBuddy Master Registry API is live!" }, null);
+}
+
+// --- SHEET GETTERS WITH AUTO-INITIALIZATION ---
+
+function getSS() {
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
+function getOrCreateSheet(name, headers) {
+  const ss = getSS();
+  let sheet = ss.getSheetByName(name);
   if (!sheet) {
-    sheet = ss.insertSheet(SHOPS_SHEET_NAME);
-    sheet.appendRow([
-      "shop_id", "shop_name", "owner_name", "phone",
-      "spreadsheet_id", "drive_folder_id", "gas_url",
-      "license_key", "status", "created_date", "expiry_date", "last_seen"
-    ]);
+    sheet = ss.insertSheet(name);
+    if (headers && headers.length > 0) {
+      sheet.appendRow(headers);
+    }
   }
   return sheet;
+}
+
+function getShopsSheet() {
+  return getOrCreateSheet(SHOPS_SHEET_NAME, [
+    "Shop ID", "License Key", "Shop Name", "Owner Name", "Phone", "Email",
+    "Google Sheet ID", "Google Apps Script URL", "Subscription Plan", 
+    "License Status", "Activation Date", "Expiry Date", "Last Heartbeat", 
+    "Current Version", "Provisioned Date", "Provisioned By"
+  ]);
+}
+
+function getSignupsSheet() {
+  return getOrCreateSheet(SIGNUPS_SHEET_NAME, [
+    "Signup ID", "Shop Name", "Owner Name", "Phone", "Email", "Hashed Password", "Status", "Created Date"
+  ]);
 }
 
 function getRollupsSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(ROLLUPS_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(ROLLUPS_SHEET_NAME);
-    sheet.appendRow(["shop_id", "date", "order_count", "total_revenue", "timestamp"]);
+  return getOrCreateSheet(ROLLUPS_SHEET_NAME, [
+    "Shop ID", "Date", "Orders", "Revenue", "Timestamp"
+  ]);
+}
+
+function getLogsSheet() {
+  return getOrCreateSheet(LOGS_SHEET_NAME, [
+    "Timestamp", "Source Identifier", "Action", "Status"
+  ]);
+}
+
+// --- API ACTIONS ---
+
+function registerCustomer(p) {
+  const shopName  = (p.shopName || '').trim();
+  const ownerName = (p.ownerName || '').trim();
+  const phone     = (p.phone || '').trim();
+  const email     = (p.email || '').trim();
+  const hashedPassword = (p.password || p.hashedPassword || '').trim();
+
+  if (!shopName || !ownerName || !email || !hashedPassword) {
+    return sendResponse(false, null, "Shop Name, Owner Name, Email, and Password are required.");
   }
-  return sheet;
+
+  const sheet = getSignupsSheet();
+  const data = sheet.getDataRange().getValues();
+
+  // Check if Email already registered
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][4] || '').toLowerCase() === email.toLowerCase()) {
+      return sendResponse(false, null, "An account with this email already exists.");
+    }
+  }
+
+  const signupId = "SIGNUP-" + Date.now();
+  const createdDate = new Date().toISOString();
+
+  sheet.appendRow([
+    signupId, shopName, ownerName, phone, email, hashedPassword, "Pending Setup", createdDate
+  ]);
+
+  logRequest(email, 'registerCustomer', 'SUCCESS');
+
+  return sendResponse(true, {
+    signupId: signupId,
+    shopName: shopName,
+    ownerName: ownerName,
+    email: email,
+    status: "Pending Setup",
+    createdDate: createdDate
+  }, null);
+}
+
+function getPendingSignups() {
+  const sheet = getSignupsSheet();
+  const data = sheet.getDataRange().getValues();
+  const signups = [];
+
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (row[0] && String(row[6] || '').trim() === "Pending Setup") {
+      signups.push({
+        signupId: String(row[0]),
+        shopName: String(row[1] || ''),
+        ownerName: String(row[2] || ''),
+        phone: String(row[3] || ''),
+        email: String(row[4] || ''),
+        status: String(row[6] || 'Pending Setup'),
+        createdDate: row[7] ? String(row[7]) : ''
+      });
+    }
+  }
+
+  return sendResponse(true, { signups: signups }, null);
 }
 
 function validateLicense(p) {
-  const shopId = (p.shopId || p.shop_id || "").trim();
-  const licenseKey = (p.licenseKey || p.license_key || "").trim();
+  const shopId     = (p.shopId || p.shop_id || '').trim();
+  const licenseKey = (p.licenseKey || p.license_key || '').trim();
+  const sourceId   = (p.sourceId || shopId || 'anonymous').trim();
+
+  // Generic anti-enumeration error response
+  const genericError = "Invalid Shop ID or License Key";
 
   if (!shopId || !licenseKey) {
-    return sendResponse(false, null, "Missing shopId or licenseKey");
+    logRequest(sourceId, 'validateLicense', 'FAILED_MISSING_INPUT');
+    return sendResponse(false, null, genericError);
+  }
+
+  // Rate Limiting Check: Maximum 10 validation attempts per source in 5 minutes
+  if (isRateLimited(sourceId)) {
+    logRequest(sourceId, 'validateLicense', 'BLOCKED_RATE_LIMIT');
+    return sendResponse(false, null, "Too many validation attempts. Please try again later.");
   }
 
   const sheet = getShopsSheet();
@@ -86,69 +190,168 @@ function validateLicense(p) {
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const sId = String(row[0] || "").trim();
-    const lKey = String(row[7] || "").trim();
+    const sId  = String(row[0] || '').trim();
+    const lKey = String(row[1] || '').trim();
 
     if (sId.toLowerCase() === shopId.toLowerCase()) {
       if (lKey !== licenseKey) {
-        return sendResponse(true, { valid: false, status: "invalid", message: "License key mismatch" }, null);
+        logRequest(sourceId, 'validateLicense', 'FAILED_MISMATCH');
+        return sendResponse(false, null, genericError);
       }
 
-      let status = String(row[8] || "trial").trim().toLowerCase();
-      const expiryDateStr = row[10] ? String(row[10]) : "";
+      let status = String(row[9] || 'Trial').trim().toLowerCase();
+      const expiryDateStr = row[11] ? String(row[11]) : '';
       
-      if (expiryDateStr && status !== "suspended") {
+      if (expiryDateStr && status !== 'suspended') {
         const expiryDate = new Date(expiryDateStr);
         if (!isNaN(expiryDate.getTime()) && new Date() > expiryDate) {
-          status = "expired";
-          sheet.getRange(i + 1, 9).setValue("expired");
+          status = 'expired';
+          sheet.getRange(i + 1, 10).setValue('Expired');
         }
       }
 
-      if (status === "suspended") {
-        return sendResponse(true, { valid: false, status: "suspended", message: "Shop subscription is suspended" }, null);
+      if (status === 'suspended') {
+        logRequest(sourceId, 'validateLicense', 'SUSPENDED');
+        return sendResponse(false, null, "Shop subscription is suspended");
       }
-      if (status === "expired") {
-        return sendResponse(true, { valid: false, status: "expired", message: "Shop subscription has expired" }, null);
+      if (status === 'expired') {
+        logRequest(sourceId, 'validateLicense', 'EXPIRED');
+        return sendResponse(false, null, "Shop subscription has expired");
       }
+
+      logRequest(sourceId, 'validateLicense', 'SUCCESS');
 
       return sendResponse(true, {
         valid: true,
+        shopName: row[2] || '',
+        plan: row[8] || 'Standard',
         status: status,
+        sheetId: row[6] || '',
+        gasUrl: row[7] || '',
+        pricing: {
+          bwPrice: 2.00,
+          colorPrice: 10.00,
+          a3Extra: 5.00,
+          currency: 'INR'
+        },
+        licenseValidUntil: expiryDateStr,
+        heartbeatInterval: 300,
+        // Backward compatibility properties
+        licenseStatus: status,
         shopId: sId,
-        shopName: row[1] || "",
-        expiryDate: expiryDateStr,
-        lastSeen: row[11] || ""
+        ownerName: row[3] || '',
+        expiryDate: expiryDateStr
       }, null);
     }
   }
 
-  return sendResponse(true, { valid: false, status: "not_found", message: "Shop ID not registered" }, null);
+  logRequest(sourceId, 'validateLicense', 'FAILED_NOT_FOUND');
+  return sendResponse(false, null, genericError);
+}
+
+function provisionShop(p) {
+  const shopId        = (p.shopId || p.shop_id || '').trim();
+  const licenseKey    = (p.licenseKey || p.license_key || '').trim();
+  const shopName      = p.shopName || 'Xerox Shop';
+  const ownerName     = p.ownerName || 'Owner';
+  const phone         = p.phone || '';
+  const email         = p.email || '';
+  const sheetId       = p.sheetId || p.spreadsheetId || '';
+  const gasUrl        = p.gasUrl || '';
+  const plan          = p.plan || p.subscriptionPlan || 'Standard';
+  const status        = p.status || p.licenseStatus || 'Active';
+  const expiryDays    = parseInt(p.expiryDays || '30', 10);
+  const provisionedBy = p.provisionedBy || 'Founder Admin';
+
+  if (!shopId || !licenseKey) {
+    return sendResponse(false, null, "Shop ID and License Key are required for provisioning.");
+  }
+
+  const sheet = getShopsSheet();
+  const data = sheet.getDataRange().getValues();
+
+  // Check if shopId already exists -> update or prevent duplicate
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0] || '').trim().toLowerCase() === shopId.toLowerCase()) {
+      // Update existing record
+      sheet.getRange(i + 1, 2).setValue(licenseKey);
+      sheet.getRange(i + 1, 3).setValue(shopName);
+      sheet.getRange(i + 1, 7).setValue(sheetId);
+      sheet.getRange(i + 1, 8).setValue(gasUrl);
+      sheet.getRange(i + 1, 10).setValue(status);
+      return sendResponse(true, { shopId: shopId, licenseKey: licenseKey, status: status }, null);
+    }
+  }
+
+  const now = new Date();
+  const activationDate = now.toISOString().split('T')[0];
+  const expiryDateObj  = new Date(now.getTime() + (expiryDays * 86400000));
+  const expiryDate     = expiryDateObj.toISOString().split('T')[0];
+  const provisionedDate = now.toISOString();
+
+  sheet.appendRow([
+    shopId,
+    licenseKey,
+    shopName,
+    ownerName,
+    phone,
+    email,
+    sheetId,
+    gasUrl,
+    plan,
+    status,
+    activationDate,
+    expiryDate,
+    now.toISOString(),
+    "1.0.0",
+    provisionedDate,
+    provisionedBy
+  ]);
+
+  // Update Signup Status to Provisioned if matching Email exists
+  if (email) {
+    const signupSheet = getSignupsSheet();
+    const sData = signupSheet.getDataRange().getValues();
+    for (let i = 1; i < sData.length; i++) {
+      if (String(sData[i][4] || '').toLowerCase() === email.toLowerCase()) {
+        signupSheet.getRange(i + 1, 7).setValue("Provisioned");
+        break;
+      }
+    }
+  }
+
+  logRequest(provisionedBy, 'provisionShop', 'SUCCESS');
+
+  return sendResponse(true, {
+    shop: {
+      shopId: shopId,
+      licenseKey: licenseKey,
+      shopName: shopName,
+      ownerName: ownerName,
+      phone: phone,
+      email: email,
+      sheetId: sheetId,
+      gasUrl: gasUrl,
+      plan: plan,
+      status: status,
+      activationDate: activationDate,
+      expiryDate: expiryDate,
+      provisionedDate: provisionedDate,
+      provisionedBy: provisionedBy
+    }
+  }, null);
 }
 
 function getShop(p) {
-  const shopId = (p.shopId || p.shop_id || "").trim();
+  const shopId = (p.shopId || p.shop_id || '').trim();
   const sheet = getShopsSheet();
   const data = sheet.getDataRange().getValues();
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    if (String(row[0] || "").trim().toLowerCase() === shopId.toLowerCase()) {
+    if (String(row[0] || '').trim().toLowerCase() === shopId.toLowerCase()) {
       return sendResponse(true, {
-        shop: {
-          shopId: row[0],
-          shopName: row[1],
-          ownerName: row[2],
-          phone: row[3],
-          spreadsheetId: row[4],
-          driveFolderId: row[5],
-          gasUrl: row[6],
-          licenseKey: row[7],
-          status: row[8],
-          createdDate: row[9],
-          expiryDate: row[10],
-          lastSeen: row[11]
-        }
+        shop: mapShopRow(row)
       }, null);
     }
   }
@@ -163,28 +366,15 @@ function listShops() {
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     if (!row[0]) continue;
-    shops.push({
-      shopId: String(row[0]),
-      shopName: String(row[1] || ""),
-      ownerName: String(row[2] || ""),
-      phone: String(row[3] || ""),
-      spreadsheetId: String(row[4] || ""),
-      driveFolderId: String(row[5] || ""),
-      gasUrl: String(row[6] || ""),
-      licenseKey: String(row[7] || ""),
-      status: String(row[8] || "trial"),
-      createdDate: row[9] ? String(row[9]) : "",
-      expiryDate: row[10] ? String(row[10]) : "",
-      lastSeen: row[11] ? String(row[11]) : ""
-    });
+    shops.push(mapShopRow(row));
   }
 
   return sendResponse(true, { shops: shops }, null);
 }
 
 function updateShopStatus(p) {
-  const shopId = (p.shopId || p.shop_id || "").trim();
-  const newStatus = (p.status || "").trim().toLowerCase();
+  const shopId = (p.shopId || p.shop_id || '').trim();
+  const newStatus = (p.status || '').trim();
 
   if (!shopId || !newStatus) {
     return sendResponse(false, null, "Missing shopId or status");
@@ -194,8 +384,8 @@ function updateShopStatus(p) {
   const data = sheet.getDataRange().getValues();
 
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0] || "").trim().toLowerCase() === shopId.toLowerCase()) {
-      sheet.getRange(i + 1, 9).setValue(newStatus);
+    if (String(data[i][0] || '').trim().toLowerCase() === shopId.toLowerCase()) {
+      sheet.getRange(i + 1, 10).setValue(newStatus);
       return sendResponse(true, { shopId: shopId, status: newStatus }, null);
     }
   }
@@ -203,59 +393,12 @@ function updateShopStatus(p) {
   return sendResponse(false, null, "Shop ID not found");
 }
 
-function createShop(p) {
-  const shopName = p.shopName || "Xerox Shop";
-  const ownerName = p.ownerName || "Owner";
-  const phone = p.phone || "";
-  const spreadsheetId = p.spreadsheetId || "";
-  const driveFolderId = p.driveFolderId || "";
-  const gasUrl = p.gasUrl || "";
-  const status = p.status || "trial";
-  const expiryDays = parseInt(p.expiryDays || "14", 10);
-
-  const sheet = getShopsSheet();
-  const data = sheet.getDataRange().getValues();
-
-  let nextNum = data.length;
-  let shopId = "XB-" + String(nextNum).padStart(3, '0');
-  const licenseKey = generateLicenseKey();
-
-  const now = new Date();
-  const createdDate = now.toISOString().split('T')[0];
-  const expiryDateObj = new Date(now.getTime() + (expiryDays * 86400000));
-  const expiryDate = expiryDateObj.toISOString().split('T')[0];
-
-  sheet.appendRow([
-    shopId,
-    shopName,
-    ownerName,
-    phone,
-    spreadsheetId,
-    driveFolderId,
-    gasUrl,
-    licenseKey,
-    status,
-    createdDate,
-    expiryDate,
-    now.toISOString()
-  ]);
-
-  return sendResponse(true, {
-    shop: {
-      shopId: shopId,
-      shopName: shopName,
-      ownerName: ownerName,
-      phone: phone,
-      licenseKey: licenseKey,
-      status: status,
-      createdDate: createdDate,
-      expiryDate: expiryDate
-    }
-  }, null);
-}
-
 function postHeartbeat(p) {
-  const shopId = (p.shopId || p.shop_id || "").trim();
+  const shopId = (p.shopId || p.shop_id || '').trim();
+  const printerStatus = p.printerStatus || 'online';
+  const currentVersion = p.currentVersion || '1.0.0';
+  const pendingJobs = parseInt(p.pendingJobs || '0', 10);
+
   if (!shopId) return sendResponse(false, null, "Missing shopId");
 
   const sheet = getShopsSheet();
@@ -263,9 +406,16 @@ function postHeartbeat(p) {
   const nowStr = new Date().toISOString();
 
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0] || "").trim().toLowerCase() === shopId.toLowerCase()) {
-      sheet.getRange(i + 1, 12).setValue(nowStr);
-      return sendResponse(true, { lastSeen: nowStr }, null);
+    if (String(data[i][0] || '').trim().toLowerCase() === shopId.toLowerCase()) {
+      sheet.getRange(i + 1, 13).setValue(nowStr);
+      sheet.getRange(i + 1, 14).setValue(currentVersion);
+      logRequest(shopId, 'postHeartbeat', 'Printer: ' + printerStatus + ', Pending: ' + pendingJobs);
+      return sendResponse(true, {
+        lastHeartbeat: nowStr,
+        currentVersion: currentVersion,
+        printerStatus: printerStatus,
+        pendingJobs: pendingJobs
+      }, null);
     }
   }
 
@@ -273,10 +423,10 @@ function postHeartbeat(p) {
 }
 
 function postRollup(p) {
-  const shopId = (p.shopId || p.shop_id || "").trim();
+  const shopId = (p.shopId || p.shop_id || '').trim();
   const dateStr = p.date || new Date().toISOString().split('T')[0];
-  const orderCount = parseInt(p.orderCount || "0", 10);
-  const totalRevenue = parseFloat(p.totalRevenue || "0");
+  const orderCount = parseInt(p.orderCount || '0', 10);
+  const totalRevenue = parseFloat(p.totalRevenue || '0');
 
   if (!shopId) return sendResponse(false, null, "Missing shopId");
 
@@ -295,10 +445,10 @@ function getAggregateStats() {
   let todayRevenue = 0;
 
   for (let i = 1; i < rData.length; i++) {
-    const rowDate = String(rData[i][1] || "");
+    const rowDate = String(rData[i][1] || '');
     if (rowDate === todayStr) {
-      todayOrders += parseInt(rData[i][2] || "0", 10);
-      todayRevenue += parseFloat(rData[i][3] || "0");
+      todayOrders += parseInt(rData[i][2] || '0', 10);
+      todayRevenue += parseFloat(rData[i][3] || '0');
     }
   }
 
@@ -313,16 +463,58 @@ function getAggregateStats() {
   }, null);
 }
 
-function generateLicenseKey() {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  function randSeg(len) {
-    let res = "";
-    for (let i = 0; i < len; i++) {
-      res += chars.charAt(Math.floor(Math.random() * chars.length));
+// --- HELPER & RATE LIMITING FUNCTIONS ---
+
+function mapShopRow(row) {
+  return {
+    shopId:          String(row[0] || ''),
+    licenseKey:      String(row[1] || ''),
+    shopName:        String(row[2] || ''),
+    ownerName:       String(row[3] || ''),
+    phone:           String(row[4] || ''),
+    email:           String(row[5] || ''),
+    sheetId:         String(row[6] || ''),
+    gasUrl:          String(row[7] || ''),
+    subscriptionPlan: String(row[8] || 'Standard'),
+    plan:            String(row[8] || 'Standard'),
+    licenseStatus:   String(row[9] || 'Active'),
+    status:          String(row[9] || 'Active'),
+    activationDate:  row[10] ? String(row[10]) : '',
+    expiryDate:      row[11] ? String(row[11]) : '',
+    lastHeartbeat:   row[12] ? String(row[12]) : '',
+    lastSeen:        row[12] ? String(row[12]) : '',
+    currentVersion:  String(row[13] || '1.0.0'),
+    provisionedDate: row[14] ? String(row[14]) : '',
+    provisionedBy:   String(row[15] || 'Founder Admin')
+  };
+}
+
+function logRequest(sourceId, action, status) {
+  try {
+    const sheet = getLogsSheet();
+    sheet.appendRow([new Date().toISOString(), sourceId, action, status]);
+  } catch (e) {}
+}
+
+function isRateLimited(sourceId) {
+  try {
+    const sheet = getLogsSheet();
+    const data = sheet.getDataRange().getValues();
+    const cutoff = new Date(Date.now() - 5 * 60 * 1000); // 5 minutes ago
+    let attempts = 0;
+
+    for (let i = data.length - 1; i >= 1; i--) {
+      const timeStr = data[i][0];
+      const src = data[i][1];
+      const logTime = new Date(timeStr);
+      if (logTime < cutoff) break;
+      if (src === sourceId) {
+        attempts++;
+        if (attempts >= 10) return true;
+      }
     }
-    return res;
-  }
-  return "XB-" + randSeg(4) + "-" + randSeg(4) + "-" + randSeg(4);
+  } catch (e) {}
+  return false;
 }
 
 function sendResponse(success, data, errorMsg) {

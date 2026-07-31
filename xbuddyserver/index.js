@@ -70,7 +70,17 @@ function startAgent() {
     try {
       const printer = await getDefaultPrinter(false)
       const statusStr = printer ? 'online' : 'no_printer'
-      await shopRepository.postHeartbeat(config.shopId, statusStr, config.masterGasUrl)
+      const waitingOrders = await orderRepository.getWaitingOrders()
+      const pendingJobsCount = waitingOrders.length
+      const currentVersion = '1.0.0'
+
+      await shopRepository.postHeartbeat(
+        config.shopId,
+        statusStr,
+        currentVersion,
+        pendingJobsCount,
+        config.masterGasUrl
+      )
     } catch (e) {}
   }
 
