@@ -207,7 +207,7 @@ export default function AdminDashboard() {
         loadMasterData()
         setShowGenerateModal(false)
       } else {
-        alert(res?.error || 'Failed to provision shop in Master Registry.')
+        alert(res?.error || res?.message || 'Failed to provision shop in Master Registry.')
       }
     } catch (err) {
       alert('Provisioning error: ' + err.message)

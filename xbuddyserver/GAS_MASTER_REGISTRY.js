@@ -250,8 +250,8 @@ function validateLicense(p) {
 }
 
 function provisionShop(p) {
-  const shopId        = (p.shopId || p.shop_id || '').trim();
-  const licenseKey    = (p.licenseKey || p.license_key || '').trim();
+  let shopId          = (p.shopId || p.shop_id || '').trim();
+  let licenseKey      = (p.licenseKey || p.license_key || '').trim();
   const shopName      = p.shopName || 'Xerox Shop';
   const ownerName     = p.ownerName || 'Owner';
   const phone         = p.phone || '';
@@ -263,23 +263,45 @@ function provisionShop(p) {
   const expiryDays    = parseInt(p.expiryDays || '30', 10);
   const provisionedBy = p.provisionedBy || 'Founder Admin';
 
-  if (!shopId || !licenseKey) {
-    return sendResponse(false, null, "Shop ID and License Key are required for provisioning.");
-  }
-
   const sheet = getShopsSheet();
   const data = sheet.getDataRange().getValues();
 
-  // Check if shopId already exists -> update or prevent duplicate
+  if (!shopId) {
+    let maxNum = 0;
+    for (let i = 1; i < data.length; i++) {
+      const match = String(data[i][0] || '').match(/SHOP(\d+)/i);
+      if (match && match[1]) {
+        maxNum = Math.max(maxNum, parseInt(match[1], 10));
+      }
+    }
+    shopId = "SHOP" + String(maxNum + 1).padStart(4, '0');
+  }
+
+  if (!licenseKey) {
+    licenseKey = generateLicenseKey();
+  }
+
+  // Check if shopId already exists -> update existing record
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0] || '').trim().toLowerCase() === shopId.toLowerCase()) {
-      // Update existing record
       sheet.getRange(i + 1, 2).setValue(licenseKey);
       sheet.getRange(i + 1, 3).setValue(shopName);
       sheet.getRange(i + 1, 7).setValue(sheetId);
       sheet.getRange(i + 1, 8).setValue(gasUrl);
       sheet.getRange(i + 1, 10).setValue(status);
-      return sendResponse(true, { shopId: shopId, licenseKey: licenseKey, status: status }, null);
+      const updatedShop = {
+        shopId: shopId,
+        licenseKey: licenseKey,
+        shopName: shopName,
+        ownerName: ownerName,
+        phone: phone,
+        email: email,
+        sheetId: sheetId,
+        gasUrl: gasUrl,
+        plan: plan,
+        status: status
+      };
+      return sendResponse(true, { shop: updatedShop, shopId: shopId, licenseKey: licenseKey, status: status }, null);
     }
   }
 
