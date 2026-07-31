@@ -51,6 +51,47 @@ app.post('/wizard/verify-provisioning', async (req, res) => {
   }
 })
 
+// ── Step 1 (Option B): Verify Direct GAS URL (Single Shop Direct Activation) ──
+app.post('/wizard/verify-gas-url', async (req, res) => {
+  try {
+    const { gasUrl, shopName, ownerName, phone, email } = req.body || {}
+
+    if (!gasUrl || !gasUrl.trim()) {
+      return res.json({ ok: false, error: 'Google Apps Script Web App URL is required.' })
+    }
+
+    const trimmedUrl = gasUrl.trim()
+    const axios = require('axios')
+
+    // 1. Verify URL responds to action=ping
+    const pingRes = await axios.get(`${trimmedUrl}?action=ping`, { timeout: 8000 }).catch(() => null)
+    if (!pingRes || !pingRes.data) {
+      return res.json({ ok: false, error: 'Could not connect to Google Apps Script URL. Please check deployment settings (Access: Anyone).' })
+    }
+
+    // 2. Fetch config via action=getConfig
+    const configRes = await axios.get(`${trimmedUrl}?action=getConfig`, { timeout: 8000 }).catch(() => null)
+    const remoteData = (configRes && configRes.data && configRes.data.data) ? configRes.data.data : {}
+
+    return res.json({
+      ok: true,
+      data: {
+        shopName: shopName || remoteData.shopName || 'Xerox Shop',
+        ownerName: ownerName || remoteData.ownerName || 'Owner',
+        phone: phone || '',
+        email: email || '',
+        gasUrl: trimmedUrl,
+        sheetId: remoteData.sheetId || '',
+        currency: remoteData.currency || 'INR',
+        pricing: remoteData.pricing || { bwPrice: 2.00, colorPrice: 10.00, a3Extra: 5.00 },
+        version: remoteData.version || '1.0.0'
+      }
+    })
+  } catch (err) {
+    return res.json({ ok: false, error: `Connection failed: ${err.message}` })
+  }
+})
+
 // ── Detect printers ────────────────────────────────────────────────
 app.get('/wizard/detect-printers', (req, res) => {
   const candidates = [

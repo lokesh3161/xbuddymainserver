@@ -18,7 +18,7 @@
   }
   .card {
     width: 100%;
-    max-width: 540px;
+    max-width: 560px;
     background: #0f1117;
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 24px;
@@ -29,7 +29,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 32px;
+    margin-bottom: 28px;
   }
   .logo-icon {
     width: 40px; height: 40px;
@@ -41,8 +41,34 @@
   }
   .logo-text { font-size: 22px; font-weight: 700; color: #fff; }
 
+  /* Tab Mode Switcher */
+  .mode-switcher {
+    display: flex;
+    background: #1a1d27;
+    padding: 4px;
+    border-radius: 14px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 9px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mode-btn.active {
+    background: #7c3aed;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(124,58,237,0.3);
+  }
+
   /* Progress bar */
-  .progress-wrap { margin-bottom: 32px; }
+  .progress-wrap { margin-bottom: 28px; }
   .progress-steps {
     display: flex;
     align-items: center;
@@ -75,16 +101,16 @@
   .step-panel.active { display: block; }
 
   h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #fff; }
-  .subtitle { font-size: 14px; color: #64748b; margin-bottom: 24px; line-height: 1.5; }
+  .subtitle { font-size: 14px; color: #64748b; margin-bottom: 20px; line-height: 1.5; }
 
-  label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; margin-top: 16px; }
+  label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; margin-top: 14px; }
   label:first-of-type { margin-top: 0; }
-  input[type="text"], input[type="password"] {
+  input[type="text"], input[type="password"], input[type="email"] {
     width: 100%;
     background: #1a1d27;
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 12px;
-    padding: 12px 14px;
+    padding: 11px 14px;
     color: #e2e8f0;
     font-size: 14px;
     outline: none;
@@ -177,16 +203,42 @@
     <div class="progress-label" id="progress-label">Step <span>1</span> of 3: Activation</div>
   </div>
 
-  <!-- Step 1: Shop ID & License Key -->
+  <!-- Step 1: Activation Mode Selector -->
   <div class="step-panel active" id="panel-1">
     <h2>Shop Activation</h2>
-    <p class="subtitle">Enter the Shop ID and License Key provided by your founder administrator.</p>
+    <p class="subtitle">Connect your XBuddy Shop package to your backend spreadsheet.</p>
 
-    <label>Shop ID</label>
-    <input type="text" id="shopId" placeholder="e.g. SHOP0001" />
+    <div class="mode-switcher">
+      <div class="mode-btn active" id="mode-btn-gas" onclick="switchMode('gas')">Direct GAS Web App URL</div>
+      <div class="mode-btn" id="mode-btn-saas" onclick="switchMode('saas')">Shop ID + License Key</div>
+    </div>
 
-    <label>License Key</label>
-    <input type="text" id="licenseKey" placeholder="e.g. XB-A1B2-C3D4-E5F6" />
+    <!-- Mode 1: Direct GAS Web App URL -->
+    <div id="form-mode-gas">
+      <label>Shop Name</label>
+      <input type="text" id="gasShopName" placeholder="e.g. Sri Sai Xerox" />
+
+      <label>Owner Name</label>
+      <input type="text" id="gasOwnerName" placeholder="e.g. Ramesh Kumar" />
+
+      <label>Phone Number</label>
+      <input type="text" id="gasPhone" placeholder="e.g. +91 9876543210" />
+
+      <label>Email Address</label>
+      <input type="email" id="gasEmail" placeholder="e.g. owner@srisai.com" />
+
+      <label>Google Apps Script Web App URL</label>
+      <input type="text" id="gasUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+    </div>
+
+    <!-- Mode 2: SaaS Shop ID + License Key -->
+    <div id="form-mode-saas" style="display: none;">
+      <label>Shop ID</label>
+      <input type="text" id="shopId" placeholder="e.g. SHOP0001" />
+
+      <label>License Key</label>
+      <input type="text" id="licenseKey" placeholder="e.g. XB-A1B2-C3D4-E5F6" />
+    </div>
 
     <label>Booth PIN <span style="color:#64748b;font-size:11px">(4–8 digits, used at the booth)</span></label>
     <input type="password" id="boothPin" placeholder="e.g. 1234" value="1234" maxlength="8" />
@@ -194,7 +246,7 @@
     <div class="alert" id="alert-1"></div>
 
     <div class="btn-row">
-      <button class="btn btn-primary" id="btn-1" onclick="step1Verify()">Verify & Continue →</button>
+      <button class="btn btn-primary" id="btn-1" onclick="step1Verify()">Connect Backend & Continue →</button>
     </div>
   </div>
 
@@ -227,15 +279,28 @@
 
 <script>
 const state = {
+  mode: 'gas', // 'gas' | 'saas'
   shopId: '',
   licenseKey: '',
   boothPin: '1234',
   shopName: '',
+  ownerName: '',
+  phone: '',
+  email: '',
   sheetId: '',
   gasUrl: '',
   masterGasUrl: '',
   printer: '',
   currentStep: 1
+}
+
+function switchMode(mode) {
+  state.mode = mode
+  document.getElementById('mode-btn-gas').className = 'mode-btn' + (mode === 'gas' ? ' active' : '')
+  document.getElementById('mode-btn-saas').className = 'mode-btn' + (mode === 'saas' ? ' active' : '')
+  document.getElementById('form-mode-gas').style.display = mode === 'gas' ? 'block' : 'none'
+  document.getElementById('form-mode-saas').style.display = mode === 'saas' ? 'block' : 'none'
+  clearAlert('alert-1')
 }
 
 function showAlert(id, msg, type = 'error') {
@@ -273,50 +338,96 @@ function goTo(step) {
   if (step === 2) loadPrinters()
 }
 
-// ── Step 1: Verify Shop ID + License Key ──
+// ── Step 1: Verify Activation Details ──
 async function step1Verify() {
   clearAlert('alert-1')
-  state.shopId = document.getElementById('shopId').value.trim()
-  state.licenseKey = document.getElementById('licenseKey').value.trim()
   state.boothPin = document.getElementById('boothPin').value.trim() || '1234'
-
-  if (!state.shopId || !state.licenseKey) {
-    return showAlert('alert-1', 'Please enter both Shop ID and License Key.')
-  }
-
   const btn = document.getElementById('btn-1')
-  btn.disabled = true
-  btn.innerHTML = '<span class="spinner"></span> Validating with Master Registry...'
 
-  try {
-    const res = await fetch('/wizard/verify-provisioning', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        shopId: state.shopId,
-        licenseKey: state.licenseKey
-      })
-    }).then(r => r.json())
+  if (state.mode === 'gas') {
+    state.shopName = document.getElementById('gasShopName').value.trim()
+    state.ownerName = document.getElementById('gasOwnerName').value.trim()
+    state.phone = document.getElementById('gasPhone').value.trim()
+    state.email = document.getElementById('gasEmail').value.trim()
+    state.gasUrl = document.getElementById('gasUrl').value.trim()
 
-    btn.disabled = false
-    btn.innerHTML = 'Verify & Continue →'
-
-    if (!res.ok) {
-      return showAlert('alert-1', res.error || 'Invalid Shop ID or License Key.')
+    if (!state.gasUrl) {
+      return showAlert('alert-1', 'Please enter your Google Apps Script Web App URL.')
     }
 
-    // Auto-populate retrieved configuration data
-    state.shopName = res.data.shopName || 'Xerox Shop'
-    state.sheetId = res.data.sheetId || ''
-    state.gasUrl = res.data.gasUrl || ''
-    state.masterGasUrl = res.data.masterGasUrl || ''
+    btn.disabled = true
+    btn.innerHTML = '<span class="spinner"></span> Verifying Apps Script Backend...'
 
-    showAlert('alert-1', `Validated successfully! Shop: ${state.shopName}`, 'success')
-    setTimeout(() => goTo(2), 600)
-  } catch (err) {
-    btn.disabled = false
-    btn.innerHTML = 'Verify & Continue →'
-    showAlert('alert-1', 'Could not reach validation server. Please check internet connection.')
+    try {
+      const res = await fetch('/wizard/verify-gas-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gasUrl: state.gasUrl,
+          shopName: state.shopName,
+          ownerName: state.ownerName,
+          phone: state.phone,
+          email: state.email
+        })
+      }).then(r => r.json())
+
+      btn.disabled = false
+      btn.innerHTML = 'Connect Backend & Continue →'
+
+      if (!res.ok) {
+        return showAlert('alert-1', res.error || 'Could not verify Google Apps Script URL.')
+      }
+
+      state.shopName = res.data.shopName || state.shopName || 'Xerox Shop'
+      state.sheetId = res.data.sheetId || ''
+      showAlert('alert-1', `Connected successfully! Shop: ${state.shopName}`, 'success')
+      setTimeout(() => goTo(2), 600)
+    } catch (err) {
+      btn.disabled = false
+      btn.innerHTML = 'Connect Backend & Continue →'
+      showAlert('alert-1', 'Failed to connect. Please check internet connection.')
+    }
+  } else {
+    // SaaS Shop ID + License Key
+    state.shopId = document.getElementById('shopId').value.trim()
+    state.licenseKey = document.getElementById('licenseKey').value.trim()
+
+    if (!state.shopId || !state.licenseKey) {
+      return showAlert('alert-1', 'Please enter both Shop ID and License Key.')
+    }
+
+    btn.disabled = true
+    btn.innerHTML = '<span class="spinner"></span> Validating with Master Registry...'
+
+    try {
+      const res = await fetch('/wizard/verify-provisioning', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopId: state.shopId,
+          licenseKey: state.licenseKey
+        })
+      }).then(r => r.json())
+
+      btn.disabled = false
+      btn.innerHTML = 'Connect Backend & Continue →'
+
+      if (!res.ok) {
+        return showAlert('alert-1', res.error || 'Invalid Shop ID or License Key.')
+      }
+
+      state.shopName = res.data.shopName || 'Xerox Shop'
+      state.sheetId = res.data.sheetId || ''
+      state.gasUrl = res.data.gasUrl || ''
+      state.masterGasUrl = res.data.masterGasUrl || ''
+
+      showAlert('alert-1', `Validated successfully! Shop: ${state.shopName}`, 'success')
+      setTimeout(() => goTo(2), 600)
+    } catch (err) {
+      btn.disabled = false
+      btn.innerHTML = 'Connect Backend & Continue →'
+      showAlert('alert-1', 'Could not reach validation server.')
+    }
   }
 }
 
@@ -363,8 +474,11 @@ async function step2Finish() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         shopName: state.shopName,
-        shopId: state.shopId,
-        licenseKey: state.licenseKey,
+        ownerName: state.ownerName,
+        phone: state.phone,
+        email: state.email,
+        shopId: state.shopId || 'SHOP0001',
+        licenseKey: state.licenseKey || 'XB-PERP-ETUAL-KEY0',
         masterGasUrl: state.masterGasUrl,
         sheetId: state.sheetId,
         gasUrl: state.gasUrl,
@@ -382,7 +496,7 @@ async function step2Finish() {
     document.getElementById('panel-2').classList.remove('active')
     document.getElementById('panel-done').classList.add('active')
     updateProgress(3)
-    document.getElementById('doneDetails').textContent = `Configuration saved for ${state.shopName} (${state.shopId}).`
+    document.getElementById('doneDetails').textContent = `Configuration saved for ${state.shopName}.`
 
     setTimeout(() => window.close(), 3000)
   } catch (err) {

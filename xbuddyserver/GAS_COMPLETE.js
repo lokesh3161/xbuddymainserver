@@ -74,12 +74,63 @@ function handleRequest(p) {
     PropertiesService.getScriptProperties().setProperty('TUNNEL_URL', p.url || '');
     return sendResponse(true, { tunnelUrl: p.url || '' }, null);
   }
-  if (action === 'getTunnelUrl') {
-    const url = PropertiesService.getScriptProperties().getProperty('TUNNEL_URL') || '';
-    return sendResponse(true, { url: url }, null);
-  }
+  if (action === 'ping')                return ping();
+  if (action === 'getConfig')           return getConfig();
 
   return sendResponse(true, { message: "XBuddy Per-Shop Backend API is active!" }, null);
+}
+
+function ping() {
+  return sendResponse(true, {
+    app: "XBuddy Per-Shop Backend",
+    status: "active",
+    version: "1.0.0",
+    timestamp: new Date().toISOString()
+  }, null);
+}
+
+function getConfig() {
+  const ss = getSS();
+  const pricingSheet = getPricingSheet();
+  const pricingData = pricingSheet.getDataRange().getValues();
+
+  let bwPrice = 2.00;
+  let colorPrice = 10.00;
+  let a3Extra = 5.00;
+
+  if (pricingData.length > 1) {
+    bwPrice = parseFloat(pricingData[1][1] || '2.00');
+    colorPrice = parseFloat(pricingData[1][2] || '10.00');
+    a3Extra = parseFloat(pricingData[1][3] || '5.00');
+  }
+
+  const shopInfoSheet = getShopInfoSheet();
+  const shopInfoData = shopInfoSheet.getDataRange().getValues();
+  let shopName = "Xerox Shop";
+  let ownerName = "Owner";
+
+  if (shopInfoData.length > 1) {
+    shopName = String(shopInfoData[1][1] || shopName);
+    ownerName = String(shopInfoData[1][2] || ownerName);
+  }
+
+  return sendResponse(true, {
+    shopName: shopName,
+    ownerName: ownerName,
+    version: "1.0.0",
+    sheetId: ss.getId(),
+    currency: "INR",
+    pricing: {
+      bwPrice: bwPrice,
+      colorPrice: colorPrice,
+      a3Extra: a3Extra,
+      currency: "INR"
+    },
+    printSettings: {
+      defaultPaperSize: "A4",
+      duplexSupported: true
+    }
+  }, null);
 }
 
 // --- SHEET GETTERS WITH AUTO-INITIALIZATION ---
