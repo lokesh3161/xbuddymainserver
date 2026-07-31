@@ -3,6 +3,9 @@ dist/
 .env
 credentials.json
 credentials/
+shop-config.json
+xbuddyserver/shop-config.json
+xbuddyserver/config/
 *.log
 temp/
 completed/

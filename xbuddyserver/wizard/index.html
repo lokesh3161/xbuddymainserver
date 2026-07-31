@@ -222,10 +222,16 @@
 
   <!-- Step 1: Shop Details -->
   <div class="step-panel active" id="panel-1">
-    <h2>Shop Details</h2>
-    <p class="subtitle">Enter your print shop's basic information.</p>
+    <h2>Shop & License Details</h2>
+    <p class="subtitle">Enter your print shop's basic information and license key.</p>
     <label>Shop Name</label>
     <input type="text" id="shopName" placeholder="e.g. Sri Sai Xerox" />
+    <label>Shop ID <span style="color:#64748b;font-size:11px">(e.g. XB-001)</span></label>
+    <input type="text" id="shopId" placeholder="XB-001" />
+    <label>License Key <span style="color:#64748b;font-size:11px">(XB-XXXX-XXXX-XXXX)</span></label>
+    <input type="text" id="licenseKey" placeholder="XB-A1B2-C3D4-E5F6" />
+    <label>Master Registry GAS URL <span style="color:#64748b;font-size:11px">(Optional)</span></label>
+    <input type="text" id="masterGasUrl" placeholder="https://script.google.com/macros/s/..." />
     <label>Booth PIN <span style="color:#64748b;font-size:11px">(4–8 digits, used at the booth)</span></label>
     <input type="password" id="boothPin" placeholder="e.g. 2580" maxlength="8" />
     <div class="alert" id="alert-1"></div>
@@ -355,13 +361,23 @@ function updateProgress(step) {
 async function step1Next() {
   clearAlert('alert-1')
   state.shopName = document.getElementById('shopName').value.trim()
+  state.shopId = document.getElementById('shopId').value.trim()
+  state.licenseKey = document.getElementById('licenseKey').value.trim()
+  state.masterGasUrl = document.getElementById('masterGasUrl').value.trim()
   state.boothPin = document.getElementById('boothPin').value.trim()
+
   const btn = document.querySelector('#panel-1 .btn-primary')
   btn.disabled = true
   btn.innerHTML = '<span class="spinner"></span> Checking...'
   const res = await fetch('/wizard/validate-shop', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ shopName: state.shopName, boothPin: state.boothPin })
+    body: JSON.stringify({
+      shopName: state.shopName,
+      shopId: state.shopId,
+      licenseKey: state.licenseKey,
+      masterGasUrl: state.masterGasUrl,
+      boothPin: state.boothPin,
+    })
   }).then(r => r.json()).catch(() => ({ ok: false, error: 'Network error.' }))
   btn.disabled = false
   btn.textContent = 'Continue →'
@@ -459,6 +475,8 @@ function step4Next() {
 function buildSummary() {
   const rows = [
     ['Shop Name',   state.shopName],
+    ['Shop ID',     state.shopId || '(Auto-generated)'],
+    ['License Key', state.licenseKey || '(Auto-generated)'],
     ['Booth PIN',   '••••'],
     ['Spreadsheet', state.sheetId.slice(0, 20) + '...'],
     ['GAS URL',     state.gasUrl.slice(0, 40) + '...'],
@@ -480,11 +498,14 @@ async function step5Finish() {
   const res = await fetch('/wizard/finish', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      shopName: state.shopName,
-      sheetId:  state.sheetId,
-      gasUrl:   state.gasUrl,
-      boothPin: state.boothPin,
-      printer:  state.printer,
+      shopName:     state.shopName,
+      shopId:       state.shopId,
+      licenseKey:   state.licenseKey,
+      masterGasUrl: state.masterGasUrl,
+      sheetId:      state.sheetId,
+      gasUrl:       state.gasUrl,
+      boothPin:     state.boothPin,
+      printer:      state.printer,
     })
   }).then(r => r.json()).catch(() => ({ ok: false, error: 'Network error.' }))
   if (!res.ok) {
@@ -500,6 +521,7 @@ async function step5Finish() {
   document.getElementById('progress-label').innerHTML = '<span style="color:#10b981">Setup Complete ✓</span>'
   setTimeout(() => window.close(), 4000)
 }
+
 
 // Drag-and-drop support
 const drop = document.getElementById('fileDrop')

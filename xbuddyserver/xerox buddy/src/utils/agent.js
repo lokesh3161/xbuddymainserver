@@ -1,5 +1,5 @@
 const LOCAL_API = 'http://localhost:3001'
-const GAS_URL   = 'https://script.google.com/macros/s/AKfycbzEGtssDA6cpNQ2Wg-TexwMFq4fhVeguNzp3EiAUd8W5aTZ4bgYscvGg2_7Ez2z2utr/exec'
+const GAS_URL   = 'https://script.google.com/macros/s/AKfycbz_Np3K34IPwNSvzq8aFMKwNHMXkLb-cNcaLmGrnROGuSczlHcwO9OQi4dCBkOo68E85Q/exec'
 
 let _tunnelUrl = null
 let _lastFetch = 0

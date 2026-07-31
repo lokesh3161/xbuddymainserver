@@ -1,6 +1,7 @@
 import { auth, getShopConfig } from './firebase'
 
 const LOCAL_API  = 'http://localhost:3001'
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbz_Np3K34IPwNSvzq8aFMKwNHMXkLb-cNcaLmGrnROGuSczlHcwO9OQi4dCBkOo68E85Q/exec'
 
 let _tunnelUrl = null
 let _tunnelFetchedAt = 0
@@ -16,7 +17,7 @@ async function getConfig() {
 
 async function getGasUrl() {
   const config = await getConfig()
-  return config?.gasUrl || 'https://script.google.com/macros/s/AKfycbxaAj1y-Dpd1TU9TKzP1fZrdESqkQDjMpPd7JeKoa0feOAj2Ss2YlWrE_Mhe7ZXfVZb/exec'
+  return config?.gasUrl || DEFAULT_GAS_URL
 }
 
 async function getTunnelUrl() {

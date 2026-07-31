@@ -3,6 +3,7 @@ const cors     = require('cors')
 const fs       = require('fs')
 const path     = require('path')
 const { execFile } = require('child_process')
+const licenseRepository = require('../repositories/licenseRepository')
 
 const BASE_DIR     = process.pkg ? path.dirname(process.execPath) : path.resolve(__dirname, '..')
 const CONFIG_DIR   = path.join(BASE_DIR, 'config')
@@ -17,13 +18,30 @@ app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 app.use(express.static(path.join(__dirname)))
 
-// ── Step 1: validate shop details ──────────────────────────────────────────
-app.post('/wizard/validate-shop', (req, res) => {
-  const { shopName, boothPin } = req.body
+// ── Step 1: validate shop details & license ─────────────────────────────────
+app.post('/wizard/validate-shop', async (req, res) => {
+  const { shopName, boothPin, shopId, licenseKey, masterGasUrl } = req.body
   if (!shopName || shopName.trim().length < 2)
     return res.json({ ok: false, error: 'Shop name must be at least 2 characters.' })
   if (!boothPin || !/^\d{4,8}$/.test(boothPin))
     return res.json({ ok: false, error: 'Booth PIN must be 4–8 digits.' })
+  
+  if (licenseKey && !/^XB-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(licenseKey.trim())) {
+    return res.json({ ok: false, error: 'License Key format must be XB-XXXX-XXXX-XXXX.' })
+  }
+
+  // If Master Registry GAS URL is provided, validate license remotely
+  if (masterGasUrl && shopId && licenseKey) {
+    try {
+      const val = await licenseRepository.validateLicense(shopId.trim(), licenseKey.trim(), masterGasUrl.trim())
+      if (!val.valid && val.status !== 'unreachable') {
+        return res.json({ ok: false, error: `License Validation Failed: ${val.message || val.status}` })
+      }
+    } catch (e) {
+      // Degrade gracefully if network fails during wizard validation
+    }
+  }
+
   res.json({ ok: true })
 })
 
@@ -100,7 +118,7 @@ app.get('/wizard/detect-printers', (req, res) => {
 
 // ── Step 5: save final config ──────────────────────────────────────────────
 app.post('/wizard/finish', (req, res) => {
-  const { shopName, shopId, sheetId, gasUrl, boothPin, printer } = req.body
+  const { shopName, shopId, licenseKey, masterGasUrl, sheetId, gasUrl, boothPin, printer } = req.body
   if (!shopName || !sheetId || !gasUrl || !boothPin)
     return res.json({ ok: false, error: 'Missing required fields.' })
 
@@ -112,14 +130,16 @@ app.post('/wizard/finish', (req, res) => {
     fs.mkdirSync(path.join(BASE_DIR, 'temp'),      { recursive: true })
 
     const config = {
-      shopName:  shopName.trim(),
-      shopId:    shopId || ('XB-' + Date.now().toString(36).toUpperCase()),
-      sheetId:   sheetId.trim(),
-      gasUrl:    gasUrl.trim(),
-      boothPin:  boothPin.trim(),
-      printer:   printer || '',
-      setupDone: true,
-      createdAt: new Date().toISOString(),
+      shopName:     shopName.trim(),
+      shopId:       (shopId && shopId.trim()) || ('XB-' + Date.now().toString(36).toUpperCase()),
+      licenseKey:   (licenseKey && licenseKey.trim()) || licenseRepository.generateLicenseKeyFormat(),
+      masterGasUrl: (masterGasUrl && masterGasUrl.trim()) || '',
+      sheetId:      sheetId.trim(),
+      gasUrl:       gasUrl.trim(),
+      boothPin:     boothPin.trim(),
+      printer:      printer || '',
+      setupDone:    true,
+      createdAt:    new Date().toISOString(),
     }
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8')
     res.json({ ok: true })
@@ -137,11 +157,9 @@ function startWizard(onDone) {
   const server = app.listen(PORT, () => {
     const url = `http://localhost:${PORT}`
     console.log(`\n  Setup Wizard running at ${url}\n`)
-    // Auto-open browser
     execFile('cmd.exe', ['/c', 'start', '', url], () => {})
   })
 
-  // Poll until config is saved, then call onDone
   const poll = setInterval(() => {
     if (fs.existsSync(CONFIG_FILE)) {
       clearInterval(poll)

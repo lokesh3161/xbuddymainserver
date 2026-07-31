@@ -7,13 +7,20 @@ const { getOrderByIdForRelease, getAllOrders } = require('./sheets')
 const { updatePrintStatus, updateReleaseStatus } = require('./updater')
 const { printPdf, getDefaultPrinter } = require('./printer')
 const { deletePdf } = require('./downloader')
-
 const { getTunnelUrl } = require('./tunnel')
 
 const app         = express()
 const PORT        = 3001
 const BASE_DIR    = process.pkg ? path.dirname(process.execPath) : path.join(__dirname, '..')
 const PENDING_DIR = path.join(BASE_DIR, 'downloads')
+
+let currentLicenseState = { valid: true, status: 'active', message: '' }
+
+function setLicenseStatus(statusObj) {
+  if (statusObj) {
+    currentLicenseState = statusObj
+  }
+}
 
 app.use(cors())
 app.use(express.json({ limit: '100mb' }))
@@ -81,6 +88,14 @@ app.post('/booth-login', (req, res) => {
 // POST /save-order — receives PDF + screenshot from browser
 app.post('/save-order', (req, res) => {
   try {
+    if (currentLicenseState && currentLicenseState.valid === false) {
+      logger.warn(`[save-order] Blocked new order save due to license status: ${currentLicenseState.status}`)
+      return res.json({
+        success: false,
+        error: `License ${currentLicenseState.status || 'invalid'}. Contact administrator to renew.`,
+      })
+    }
+
     const { orderId, fileName, pdfBase64, screenshotBase64 } = req.body
     if (!orderId) return res.json({ success: false, error: 'Missing orderId' })
 
@@ -109,12 +124,17 @@ app.get('/tunnel-url', (req, res) => {
 
 // GET / — basic health check for browser-based checks
 app.get('/', (req, res) => {
-  res.json({ success: true, message: 'Print agent local server is running' })
+  res.json({ success: true, message: 'Print agent local server is running', license: currentLicenseState })
 })
 
 // GET /status — health check
 app.get('/status', (req, res) => {
-  res.json({ success: true, message: 'Print agent local server is running' })
+  res.json({ success: true, message: 'Print agent local server is running', license: currentLicenseState })
+})
+
+// GET /admin/license — returns current license status
+app.get('/admin/license', (req, res) => {
+  res.json({ success: true, license: currentLicenseState })
 })
 
 app.get('/admin/orders', async (req, res) => {
@@ -144,7 +164,16 @@ app.get('/admin/stats', async (req, res) => {
     const pending = rows.filter(order => order.printStatus === 'Waiting').length
     const printed = rows.filter(order => order.printStatus === 'Printed').length
     const failed = rows.filter(order => order.printStatus === 'Failed').length
-    res.json({ success: true, totalOrders, revenue, pending, printed, failed, activeBooths: 4 })
+    res.json({
+      success: true,
+      totalOrders,
+      revenue,
+      pending,
+      printed,
+      failed,
+      activeBooths: 4,
+      license: currentLicenseState
+    })
   } catch (err) {
     res.json({ success: false, error: err.message })
   }
@@ -156,7 +185,7 @@ app.get('/admin/booths', async (req, res) => {
     const pending = rows.filter(order => order.printStatus === 'Waiting').length
     const booths = [
       { name: 'Booth 01', online: true, queue: Math.max(0, Math.round(pending * 0.4)), connected: true, printed: 48, revenue: 1092, paused: false, locked: false },
-      { name: 'Booth 02', online: true, queue: Math.max(0, Math.round(pending * 0.3)), connected: true, printed: 33, revenue: 732, paused: false, locked: false },
+      { name: 'Booth 02', online: true, queue: Math.max(0, Math.round(pending * 0.3)), connected: true, printed: 732, revenue: 732, paused: false, locked: false },
       { name: 'Booth 03', online: true, queue: Math.max(0, Math.round(pending * 0.2)), connected: true, printed: 57, revenue: 1356, paused: false, locked: false },
       { name: 'Booth 04', online: false, queue: Math.max(0, Math.round(pending * 0.1)), connected: false, printed: 22, revenue: 478, paused: true, locked: false },
     ]
@@ -173,19 +202,21 @@ app.get('/admin/health', async (req, res) => {
     const checks = [
       { name: 'Print Agent', status: 'online' },
       { name: 'Local Server', status: 'online' },
+      { name: 'License Status', status: currentLicenseState.valid ? 'online' : 'offline' },
       { name: 'Google Sheets', status: rows.length >= 0 ? 'online' : 'offline' },
       { name: 'Cloudflare Tunnel', status: 'online' },
       { name: 'Printer Connectivity', status: printer ? 'online' : 'offline' },
     ]
-    res.json({ success: true, checks })
+    res.json({ success: true, checks, license: currentLicenseState })
   } catch (err) {
     res.json({ success: true, checks: [
       { name: 'Print Agent', status: 'online' },
       { name: 'Local Server', status: 'online' },
+      { name: 'License Status', status: currentLicenseState.valid ? 'online' : 'offline' },
       { name: 'Google Sheets', status: 'offline' },
       { name: 'Cloudflare Tunnel', status: 'online' },
       { name: 'Printer Connectivity', status: 'offline' },
-    ], error: err.message })
+    ], error: err.message, license: currentLicenseState })
   }
 })
 
@@ -260,4 +291,4 @@ function decodePendingPdf(orderId, outputPath) {
   return true
 }
 
-module.exports = { startLocalServer, decodePendingPdf, ensureDirectory }
+module.exports = { startLocalServer, decodePendingPdf, ensureDirectory, setLicenseStatus }

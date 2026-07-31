@@ -1,20 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts'
 import {
   TrendingUp,
   DollarSign,
@@ -24,12 +9,14 @@ import {
   Server,
   PauseCircle,
   RefreshCcw,
-  Lock,
-  CheckCircle,
+  PlusCircle,
+  Key,
+  Ban,
+  CheckCircle2,
   AlertTriangle,
-  CircleDot,
-  ArrowUpRight,
-  ArrowDownRight,
+  Building2,
+  Users,
+  Calendar,
 } from 'lucide-react'
 import {
   fetchAdminOrders,
@@ -37,701 +24,543 @@ import {
   fetchBoothStatus,
   fetchHealthStatus,
 } from '../utils/api'
-import { getShopConfig } from '../utils/firebase'
-import JSZip from 'jszip'
-import { saveAs } from 'file-saver'
 
-const STATUS_STYLES = {
-  Waiting: 'bg-amber-500/10 text-amber-300',
-  Released: 'bg-sky-500/10 text-sky-300',
-  Printing: 'bg-violet-500/10 text-violet-300',
-  Printed: 'bg-emerald-500/10 text-emerald-300',
-  Failed: 'bg-rose-500/10 text-rose-300',
-}
+export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState('master') // 'master' | 'shop_ops'
+  const [loading, setLoading] = useState(false)
 
-const INITIAL_ORDERS = [
-  { id: 'XBD-1082', fileName: 'Resume_Design.pdf', type: 'Resume', pages: 4, amount: 72, booth: 'Booth 01', status: 'Printed', time: '09:18 AM' },
-  { id: 'XBD-1083', fileName: 'Leave_Letter.pdf', type: 'Leave Letter', pages: 2, amount: 28, booth: 'Booth 03', status: 'Printing', time: '09:24 AM' },
-  { id: 'XBD-1084', fileName: 'Bonafide.pdf', type: 'Bonafide', pages: 1, amount: 14, booth: 'Booth 02', status: 'Waiting', time: '09:26 AM' },
-  { id: 'XBD-1085', fileName: 'Project_Assignment.pdf', type: 'Assignment', pages: 6, amount: 96, booth: 'Booth 01', status: 'Failed', time: '09:32 AM' },
-  { id: 'XBD-1086', fileName: 'Research_Paper.pdf', type: 'Manual PDF', pages: 12, amount: 174, booth: 'Booth 04', status: 'Released', time: '09:45 AM' },
-  { id: 'XBD-1087', fileName: 'Internship_Letter.pdf', type: 'Internship', pages: 3, amount: 45, booth: 'Booth 02', status: 'Waiting', time: '09:51 AM' },
-  { id: 'XBD-1088', fileName: 'Lab_Report.pdf', type: 'Lab', pages: 5, amount: 75, booth: 'Booth 03', status: 'Printed', time: '10:02 AM' },
-  { id: 'XBD-1089', fileName: 'Resume_Bio.pdf', type: 'Resume', pages: 2, amount: 30, booth: 'Booth 01', status: 'Printing', time: '10:08 AM' },
-]
+  // Master SaaS State
+  const [shops, setShops] = useState([])
+  const [aggregateStats, setAggregateStats] = useState({ totalShops: 0, todayOrders: 0, todayRevenue: 0 })
+  const [showGenerateModal, setShowGenerateModal] = useState(false)
+  const [newShopForm, setNewShopForm] = useState({
+    shopName: '',
+    ownerName: '',
+    phone: '',
+    spreadsheetId: '',
+    driveFolderId: '',
+    gasUrl: '',
+    status: 'trial',
+    expiryDays: '14',
+  })
+  const [createdLicense, setCreatedLicense] = useState(null)
 
-const INITIAL_BOOTHS = [
-  { name: 'Booth 01', online: true, queue: 2, connected: true, printed: 48, revenue: 1092, paused: false, locked: false },
-  { name: 'Booth 02', online: true, queue: 1, connected: true, printed: 33, revenue: 732, paused: false, locked: false },
-  { name: 'Booth 03', online: true, queue: 3, connected: true, printed: 57, revenue: 1356, paused: false, locked: false },
-  { name: 'Booth 04', online: false, queue: 0, connected: false, printed: 22, revenue: 478, paused: true, locked: false },
-]
+  // Single Shop Live State
+  const [orders, setOrders] = useState([])
+  const [stats, setStats] = useState({ totalOrders: 0, revenue: 0, pending: 0, printed: 0 })
+  const [booths, setBooths] = useState([])
+  const [health, setHealth] = useState([])
 
-const DAY_REVENUE = [
-  { day: 'Mon', revenue: 920 },
-  { day: 'Tue', revenue: 1140 },
-  { day: 'Wed', revenue: 980 },
-  { day: 'Thu', revenue: 1190 },
-  { day: 'Fri', revenue: 1340 },
-  { day: 'Sat', revenue: 1560 },
-  { day: 'Sun', revenue: 1820 },
-]
+  const masterGasUrl = localStorage.getItem('xbuddy_master_gas_url') || ''
 
-const HOUR_ORDERS = [
-  { hour: '6 AM', orders: 8 },
-  { hour: '8 AM', orders: 12 },
-  { hour: '10 AM', orders: 20 },
-  { hour: '12 PM', orders: 18 },
-  { hour: '2 PM', orders: 22 },
-  { hour: '4 PM', orders: 26 },
-  { hour: '6 PM', orders: 19 },
-  { hour: '8 PM', orders: 14 },
-]
-
-const DOC_USAGE = [
-  { name: 'Resume', value: 34, color: '#A855F7' },
-  { name: 'Leave Letter', value: 22, color: '#22D3EE' },
-  { name: 'Bonafide', value: 16, color: '#F59E0B' },
-  { name: 'Assignments', value: 18, color: '#34D399' },
-  { name: 'Manual PDFs', value: 10, color: '#F472B6' },
-]
-
-const PRINT_TYPE_DATA = [
-  { name: 'B&W', value: 38, color: '#A78BFA' },
-  { name: 'Color', value: 62, color: '#38BDF8' },
-]
-
-const HEALTH_CHECKS = [
-  { name: 'Print Agent', status: 'online' },
-  { name: 'Local Server', status: 'online' },
-  { name: 'Google Sheets', status: 'online' },
-  { name: 'Cloudflare Tunnel', status: 'online' },
-  { name: 'Printer Connectivity', status: 'online' },
-]
-
-const getBadge = status => {
-  if (status === 'online') return 'bg-emerald-500/15 text-emerald-300'
-  if (status === 'offline') return 'bg-rose-500/15 text-rose-300'
-  return 'bg-slate-500/15 text-slate-300'
-}
-
-const formatCurrency = value => `₹${value.toLocaleString()}`
-
-export default function AdminDashboard({ user, onBack }) {
-  const [orders, setOrders] = useState(INITIAL_ORDERS)
-  const [booths, setBooths] = useState(INITIAL_BOOTHS)
-  const [health, setHealth] = useState(HEALTH_CHECKS)
-  const [refreshTick, setRefreshTick] = useState(0)
-  const [realConnected, setRealConnected] = useState(false)
-  const [realError, setRealError] = useState('')
-  const [adminPassword, setAdminPassword] = useState('')
-  const [isAuthorized, setIsAuthorized] = useState(!!user)
-  const [authError, setAuthError] = useState('')
-  const [boothPin, setBoothPin] = useState(null)
-  const [shopConfig, setShopConfig] = useState(null)
-  const [downloading, setDownloading] = useState(false)
-
-  useEffect(() => {
-    if (user) {
-      setIsAuthorized(true)
-      getShopConfig(user.uid).then(config => {
-        if (config) {
-          setShopConfig(config)
-          setBoothPin(config.boothPin)
-        }
-      })
-    }
-  }, [user])
-
-  async function handleDownloadPackage() {
-    if (!shopConfig) return
-    setDownloading(true)
-    try {
-      const zip = new JSZip()
-
-      zip.file('shop-config.json', JSON.stringify({
-        shopName: shopConfig.shopName,
-        shopId:   shopConfig.shopId || 'XB-' + user.uid.slice(0, 6).toUpperCase(),
-        sheetId:  shopConfig.sheetId,
-        gasUrl:   shopConfig.gasUrl,
-        boothPin: shopConfig.boothPin,
-      }, null, 2))
-
-      zip.file('SETUP.bat',
-`@echo off
-title X Buddy Setup
-color 0A
-echo.
-echo  ================================
-echo   X Buddy Print Agent Setup
-echo  ================================
-echo.
-where node >nul 2>&1
-if %errorlevel% neq 0 (
-    echo  Downloading Node.js...
-    powershell -Command "Invoke-WebRequest -Uri 'https://nodejs.org/dist/v18.20.4/node-v18.20.4-x64.msi' -OutFile 'node-setup.msi'"
-    msiexec /i node-setup.msi /quiet /norestart
-    del node-setup.msi
-    echo  Node.js installed!
-) else (
-    echo  Node.js already installed!
-)
-call npm install
-echo.
-echo  Setup Complete! Now double-click START.bat
-echo.
-pause`)
-
-      zip.file('START.bat',
-`@echo off
-title X Buddy Print Agent
-color 0A
-echo.
-echo  X Buddy Print Agent Starting...
-echo  ================================
-echo.
-cd /d "%~dp0"
-if not exist "node_modules" call npm install
-if exist "cloudflared.exe" (
-    start "" /min cmd /c "cloudflared.exe tunnel --url http://localhost:3001 > tunnel.log 2>&1"
-) else (
-    echo  cloudflared.exe not found; continuing without tunnel
-)
-node index.js
-pause`)
-
-      zip.file('README.txt',
-`X Buddy Shop Package - ${shopConfig.shopName}
-========================================
-FIRST TIME SETUP:
-1. Copy credentials.json into this folder
-2. Double-click SETUP.bat
-3. Double-click START.bat
-
-EVERY DAY: Just double-click START.bat`)
-
-      const cloudflaredRes = await fetch('/cloudflared.exe')
-      if (cloudflaredRes.ok) zip.file('cloudflared.exe', await cloudflaredRes.arrayBuffer())
-
-      // Fetch server source files
-      const serverFiles = ['index.js', 'config.js', 'package.json', 'START.bat', 'SETUP.bat',
-        'services/downloader.js', 'services/driveUploader.js', 'services/localServer.js',
-        'services/printer.js', 'services/sheets.js', 'services/tunnel.js', 'services/updater.js',
-        'utils/logger.js', 'utils/credentialPath.js',
-        'wizard/server.js', 'wizard/index.html']
-      for (const f of serverFiles) {
-        const res = await fetch(`/server/${f}`)
-        if (res.ok) zip.file(f, await res.text())
-      }
-
-      const blob = await zip.generateAsync({ type: 'blob' })
-      saveAs(blob, `XBuddy-${shopConfig.shopName.replace(/\s+/g, '-')}-Package.zip`)
-    } catch (e) {
-      alert('Download failed: ' + e.message)
-    }
-    setDownloading(false)
-  }
-
-  const stats = useMemo(() => {
-    const total = orders.length
-    const revenue = orders.reduce((sum, order) => sum + order.amount, 0)
-    const pending = orders.filter(order => order.status === 'Waiting').length
-    const printed = orders.filter(order => order.status === 'Printed').length
-    const failed = orders.filter(order => order.status === 'Failed').length
-    const active = booths.filter(booth => booth.online).length
-    return { total, revenue, pending, printed, failed, active }
-  }, [orders, booths])
-
-  const busiestHours = useMemo(() => {
-    return HOUR_ORDERS.slice().sort((a, b) => b.orders - a.orders).slice(0, 3)
-  }, [])
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = window.localStorage.getItem('xbuddyAdminAuthorized')
-      if (saved === 'true') {
-        setIsAuthorized(true)
-      }
-    }
-  }, [])
-
-  const handleAdminLogin = (event) => {
-    event.preventDefault()
-    const correctPin = boothPin || '2580'
-    if (adminPassword === correctPin) {
-      setIsAuthorized(true)
-      setAuthError('')
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('xbuddyAdminAuthorized', 'true')
-      }
+  const loadMasterData = async () => {
+    if (!masterGasUrl) {
+      // Mock master shop data if masterGasUrl is not yet set in browser storage
+      setShops([
+        {
+          shopId: 'XB-001',
+          shopName: 'Sri Sai Xerox',
+          ownerName: 'Ramesh Kumar',
+          phone: '+91 9876543210',
+          licenseKey: 'XB-A1B2-C3D4-E5F6',
+          status: 'trial',
+          createdDate: '2026-07-20',
+          expiryDate: '2026-08-03',
+          lastSeen: new Date().toISOString(),
+        },
+        {
+          shopId: 'XB-002',
+          shopName: 'Metro Print Station',
+          ownerName: 'Suresh V',
+          phone: '+91 9123456789',
+          licenseKey: 'XB-F9E8-D7C6-B5A4',
+          status: 'active',
+          createdDate: '2026-07-01',
+          expiryDate: '2026-12-31',
+          lastSeen: new Date().toISOString(),
+        },
+      ])
+      setAggregateStats({ totalShops: 2, todayOrders: 45, todayRevenue: 680 })
       return
     }
-    setAuthError('Incorrect password. Please try again.')
-  }
 
-  const handleAdminPasswordChange = (event) => {
-    setAdminPassword(event.target.value)
-    if (authError) setAuthError('')
-  }
+    try {
+      setLoading(true)
+      const res = await fetch(`${masterGasUrl}?action=listShops`).then(r => r.json())
+      if (res?.shops) setShops(res.shops)
 
-  useEffect(() => {
-    if (!isAuthorized) return
-    let isMounted = true
-    async function loadAdminData() {
-      try {
-        const [ordersRes, statsRes, boothsRes, healthRes] = await Promise.all([
-          fetchAdminOrders(),
-          fetchAdminStats(),
-          fetchBoothStatus(),
-          fetchHealthStatus(),
-        ])
-
-        if (!isMounted) return
-
-        const hasOrders = ordersRes?.success && Array.isArray(ordersRes.orders)
-        const hasStats = statsRes?.success && typeof statsRes.totalOrders === 'number'
-        const hasBooths = boothsRes?.success && Array.isArray(boothsRes.booths)
-        const hasHealth = healthRes?.success && Array.isArray(healthRes.checks)
-        const hasAnyData = hasOrders || hasStats || hasBooths || hasHealth
-
-        if (hasAnyData) {
-          setRealConnected(true)
-          setRealError('')
-        } else {
-          setRealConnected(false)
-          setRealError('Connected backend did not return dashboard data. Confirm the admin service is available.')
-        }
-
-        if (hasOrders) setOrders(ordersRes.orders)
-        if (hasStats) {
-          // use dynamic stats if available
-          setRealError('')
-        }
-        if (hasBooths) setBooths(boothsRes.booths)
-        if (hasHealth) setHealth(healthRes.checks)
-      } catch (error) {
-        if (!isMounted) return
-        setRealError('Unable to load admin data from backend. Using fallback mode.')
-      }
-    }
-
-    loadAdminData()
-    const adminInterval = setInterval(loadAdminData, 8000)
-    return () => {
-      isMounted = false
-      clearInterval(adminInterval)
-    }
-  }, [isAuthorized])
-
-  useEffect(() => {
-    if (!isAuthorized) return
-    const interval = setInterval(() => {
-      setRefreshTick(t => t + 1)
-
-      setOrders(prev => {
-        const statusOrder = prev.map(order => {
-          if (order.status === 'Printing' && Math.random() > 0.6) {
-            return { ...order, status: 'Printed' }
-          }
-          if (order.status === 'Waiting' && Math.random() > 0.65) {
-            return { ...order, status: 'Printing' }
-          }
-          if (order.status === 'Released' && Math.random() > 0.8) {
-            return { ...order, status: 'Printing' }
-          }
-          return order
+      const aggRes = await fetch(`${masterGasUrl}?action=getAggregateStats`).then(r => r.json())
+      if (aggRes) {
+        setAggregateStats({
+          totalShops: aggRes.totalShops || (res?.shops ? res.shops.length : 0),
+          todayOrders: aggRes.todayOrders || 0,
+          todayRevenue: aggRes.todayRevenue || 0,
         })
+      }
+    } catch (err) {
+      console.error('Failed to load Master Registry:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-        if (!realConnected && Math.random() > 0.7) {
-          const nextId = `XBD-${Math.floor(1090 + Math.random() * 90)}`
-          const types = ['Resume', 'Leave Letter', 'Bonafide', 'Assignment', 'Manual PDF']
-          const type = types[Math.floor(Math.random() * types.length)]
-          const pageCount = 1 + Math.floor(Math.random() * 8)
-          const newest = {
-            id: nextId,
-            fileName: `${type.replace(' ', '_')}_${nextId}.pdf`,
-            type,
-            pages: pageCount,
-            amount: pageCount * 14,
-            booth: booths[Math.floor(Math.random() * booths.length)].name,
-            status: 'Waiting',
-            time: `${10 + Math.floor(Math.random() * 3)}:${10 + Math.floor(Math.random() * 50)} AM`,
-          }
-          return [newest, ...statusOrder].slice(0, 12)
-        }
+  const loadShopOpsData = async () => {
+    try {
+      const [ordRes, statRes, bthRes, hltRes] = await Promise.all([
+        fetchAdminOrders(),
+        fetchAdminStats(),
+        fetchBoothStatus(),
+        fetchHealthStatus(),
+      ])
 
-        return statusOrder
+      if (ordRes?.orders) setOrders(ordRes.orders)
+      if (statRes) setStats(statRes)
+      if (bthRes?.booths) setBooths(bthRes.booths)
+      if (hltRes?.checks) setHealth(hltRes.checks)
+    } catch (err) {
+      console.error('Failed to load shop ops data:', err)
+    }
+  }
+
+  useEffect(() => {
+    loadMasterData()
+    loadShopOpsData()
+  }, [])
+
+  const handleGenerateLicense = async (e) => {
+    e.preventDefault()
+    if (!masterGasUrl) {
+      // Simulate local creation
+      const mockKey = 'XB-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase()
+      const newShop = {
+        shopId: 'XB-' + String(shops.length + 1).padStart(3, '0'),
+        shopName: newShopForm.shopName || 'New Xerox Shop',
+        ownerName: newShopForm.ownerName || 'Shop Owner',
+        phone: newShopForm.phone,
+        licenseKey: mockKey,
+        status: newShopForm.status,
+        createdDate: new Date().toISOString().split('T')[0],
+        expiryDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+        lastSeen: new Date().toISOString(),
+      }
+      setShops([...shops, newShop])
+      setCreatedLicense(newShop)
+      setShowGenerateModal(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({
+        action: 'createShop',
+        ...newShopForm,
       })
-
-      setBooths(prev => prev.map(booth => {
-        const queue = Math.max(0, booth.queue + (Math.random() > 0.55 ? -1 : 1))
-        return {
-          ...booth,
-          queue: Math.min(6, queue),
-          connected: booth.online ? booth.connected : false,
-        }
-      }))
-
-      setHealth(prev => prev.map(check => {
-        if (!realConnected && Math.random() > 0.9) {
-          const nextStatus = check.status === 'online' ? 'offline' : 'online'
-          return { ...check, status: nextStatus }
-        }
-        return check
-      }))
-    }, 4500)
-
-    return () => clearInterval(interval)
-  }, [booths, realConnected])
-
-  const handleRetry = id => {
-    setOrders(prev => prev.map(order => order.id === id ? { ...order, status: 'Waiting' } : order))
+      const res = await fetch(`${masterGasUrl}?${params.toString()}`).then(r => r.json())
+      if (res?.success && res.shop) {
+        setCreatedLicense(res.shop)
+        loadMasterData()
+        setShowGenerateModal(false)
+      } else {
+        alert(res?.error || 'Failed to generate shop license.')
+      }
+    } catch (err) {
+      alert('Error creating shop: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleCancel = id => {
-    setOrders(prev => prev.map(order => order.id === id ? { ...order, status: 'Failed' } : order))
+  const handleDisableShop = async (shopId) => {
+    if (!confirm(`Are you sure you want to suspend access for shop ${shopId}?`)) return
+
+    if (!masterGasUrl) {
+      setShops(shops.map(s => s.shopId === shopId ? { ...s, status: 'suspended' } : s))
+      return
+    }
+
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({ action: 'updateShopStatus', shopId, status: 'suspended' })
+      const res = await fetch(`${masterGasUrl}?${params.toString()}`).then(r => r.json())
+      if (res?.success) {
+        loadMasterData()
+      } else {
+        alert('Could not update status: ' + (res?.error || 'Unknown error'))
+      }
+    } catch (err) {
+      alert('Error updating status: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleReprint = id => {
-    setOrders(prev => prev.map(order => order.id === id ? { ...order, status: 'Printing' } : order))
-  }
+  const handleActivateShop = async (shopId) => {
+    if (!masterGasUrl) {
+      setShops(shops.map(s => s.shopId === shopId ? { ...s, status: 'active' } : s))
+      return
+    }
 
-  const handlePauseBooth = name => {
-    setBooths(prev => prev.map(booth => booth.name === name ? { ...booth, online: !booth.online, paused: !booth.paused } : booth))
-  }
-
-  const handleRestartBooth = name => {
-    setBooths(prev => prev.map(booth => booth.name === name ? { ...booth, online: true, connected: true, paused: false } : booth))
-  }
-
-  const handleLockBooth = name => {
-    setBooths(prev => prev.map(booth => booth.name === name ? { ...booth, locked: !booth.locked } : booth))
-  }
-
-  if (!isAuthorized) {
-    return (
-      <div className="min-h-screen bg-[#07070d] text-white flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-slate-950/90 p-8 shadow-2xl shadow-black/40">
-          <div className="mb-6">
-            <p className="text-sm text-slate-400 uppercase tracking-[0.24em] mb-3">Admin Sign In</p>
-            <h1 className="text-3xl font-semibold">Enter Admin Password</h1>
-            <p className="mt-2 text-slate-500 text-sm">Access to the X Buddy admin dashboard is restricted.</p>
-          </div>
-          <form onSubmit={handleAdminLogin} className="space-y-4">
-            <label className="block text-slate-400 text-sm">Password</label>
-            <input
-              type="password"
-              value={adminPassword}
-              onChange={handleAdminPasswordChange}
-              placeholder="Enter admin password"
-              className="w-full rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white placeholder-slate-600 focus:border-purple-500 focus:outline-none"
-            />
-            {authError && <p className="text-rose-300 text-sm">{authError}</p>}
-            <button
-              type="submit"
-              className="w-full rounded-2xl bg-purple-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-purple-500"
-            >
-              Unlock Dashboard
-            </button>
-          </form>
-          <div className="mt-6 rounded-2xl bg-white/5 p-4 text-sm text-slate-400">
-            Use the admin password provided by the operator.
-          </div>
-        </div>
-      </div>
-    )
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({ action: 'updateShopStatus', shopId, status: 'active' })
+      const res = await fetch(`${masterGasUrl}?${params.toString()}`).then(r => r.json())
+      if (res?.success) loadMasterData()
+    } catch (err) {
+      alert('Error: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-[#07070d] text-white">
-      <div className="max-w-[1480px] mx-auto px-4 py-6 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-          <div>
-            <p className="text-sm text-slate-400 uppercase tracking-[0.24em] mb-3">Premium Admin Dashboard</p>
-            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">X Buddy Operations</h1>
-            <p className="mt-3 text-slate-400 max-w-2xl">Monitor print queue flow, booth uptime, orders, and revenue from a startup-grade SaaS admin console.</p>
-            {user && (
-              <div className="mt-3 inline-flex items-center gap-2">
-                <span className="text-slate-300 font-medium">{user.displayName || user.email}</span>
-                <span className="rounded-full bg-purple-500/20 px-2.5 py-0.5 text-xs font-semibold text-purple-300 border border-purple-500/30">Owner</span>
+    <div className="min-h-screen bg-[#07070d] text-slate-100 p-6 md:p-10 font-sans">
+      {/* Top Header */}
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="p-2.5 bg-violet-600/20 border border-violet-500/30 rounded-xl text-violet-400">
+              <Building2 className="w-6 h-6" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              Founder Admin Dashboard
+            </h1>
+          </div>
+          <p className="text-slate-400 text-sm">
+            XBuddy SaaS Master Registry & Cross-Shop Management
+          </p>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex items-center bg-slate-900 border border-slate-800 p-1 rounded-xl">
+          <button
+            onClick={() => setActiveTab('master')}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition ${
+              activeTab === 'master'
+                ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Master Registry (SaaS)
+          </button>
+          <button
+            onClick={() => setActiveTab('shop_ops')}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition ${
+              activeTab === 'shop_ops'
+                ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/20'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Live Shop Operations
+          </button>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Master Registry View */}
+        {activeTab === 'master' && (
+          <>
+            {/* Aggregate Metrics (Pull from Rollups) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl backdrop-blur-md">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Registered Shops</p>
+                    <h3 className="text-3xl font-extrabold mt-2 text-white">{aggregateStats.totalShops || shops.length}</h3>
+                  </div>
+                  <div className="p-3 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-xl">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 mt-4">Isolated shop databases active</p>
+              </div>
+
+              <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl backdrop-blur-md">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Orders Today</p>
+                    <h3 className="text-3xl font-extrabold mt-2 text-white">{aggregateStats.todayOrders}</h3>
+                  </div>
+                  <div className="p-3 bg-sky-500/10 border border-sky-500/20 text-sky-400 rounded-xl">
+                    <Clock3 className="w-5 h-5" />
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 mt-4">Aggregated from daily agent rollups</p>
+              </div>
+
+              <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl backdrop-blur-md">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Revenue Today</p>
+                    <h3 className="text-3xl font-extrabold mt-2 text-emerald-400">₹{aggregateStats.todayRevenue}</h3>
+                  </div>
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
+                    <DollarSign className="w-5 h-5" />
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 mt-4">No live multi-sheet queries needed</p>
+              </div>
+            </div>
+
+            {/* Generated License Result Banner */}
+            {createdLicense && (
+              <div className="p-5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-bold text-emerald-400 text-sm flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5" />
+                    New Shop Provisioned & License Generated!
+                  </h4>
+                  <p className="text-xs text-emerald-300/80 mt-1">
+                    Shop ID: <strong className="font-mono">{createdLicense.shopId}</strong> | License Key: <strong className="font-mono">{createdLicense.licenseKey}</strong>
+                  </p>
+                </div>
+                <button
+                  onClick={() => setCreatedLicense(null)}
+                  className="px-3 py-1.5 bg-emerald-500/20 text-emerald-200 text-xs font-medium rounded-lg hover:bg-emerald-500/30"
+                >
+                  Dismiss
+                </button>
               </div>
             )}
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button onClick={handleDownloadPackage} disabled={downloading || !shopConfig}
-              className="inline-flex items-center gap-2 rounded-2xl border border-purple-500/30 bg-purple-500/10 px-4 py-2 text-sm text-purple-300 transition hover:bg-purple-500/20 disabled:opacity-50">
-              {downloading ? '⏳ Preparing...' : '📦 Download My Shop Package'}
-            </button>
-            <button onClick={onBack} className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition hover:border-purple-400/30 hover:bg-white/10">
-              <RefreshCcw className="h-4 w-4 text-purple-300" />
-              Back to User App
-            </button>
-          </div>
-        </div>
 
-        {realError ? (
-          <div className="mb-6 rounded-3xl border border-rose-500/10 bg-rose-500/5 p-4 text-sm text-rose-100">
-            <strong>Real data unavailable:</strong> {realError} The dashboard is currently using fallback sample values.
-          </div>
-        ) : realConnected ? (
-          <div className="mb-6 rounded-3xl border border-emerald-500/10 bg-emerald-500/5 p-4 text-sm text-emerald-100">
-            Connected to backend data source. Live order feed is active.
-          </div>
-        ) : (
-          <div className="mb-6 rounded-3xl border border-slate-500/10 bg-slate-500/5 p-4 text-sm text-slate-200">
-            Attempting to connect to the backend order feed...
-          </div>
+            {/* Master Registry Table */}
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 backdrop-blur-md">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Users className="w-5 h-5 text-violet-400" />
+                    All Registered Xerox Shops
+                  </h2>
+                  <p className="text-xs text-slate-400">Manage licenses, trial periods, and shop statuses.</p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={loadMasterData}
+                    className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition"
+                    title="Refresh Master Data"
+                  >
+                    <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  </button>
+                  <button
+                    onClick={() => setShowGenerateModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-medium text-sm transition shadow-lg shadow-violet-600/20"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Generate License
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                      <th className="pb-3">Shop ID</th>
+                      <th className="pb-3">Shop Name</th>
+                      <th className="pb-3">Owner / Phone</th>
+                      <th className="pb-3">License Key</th>
+                      <th className="pb-3">Status</th>
+                      <th className="pb-3">Expiry Date</th>
+                      <th className="pb-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {shops.length === 0 ? (
+                      <tr>
+                        <td colSpan="7" className="py-8 text-center text-slate-500">
+                          No shops registered yet. Click "Generate License" to add your first shop.
+                        </td>
+                      </tr>
+                    ) : (
+                      shops.map(s => (
+                        <tr key={s.shopId} className="hover:bg-slate-800/30 transition-colors">
+                          <td className="py-3.5 font-mono font-semibold text-slate-200">{s.shopId}</td>
+                          <td className="py-3.5 font-medium text-white">{s.shopName}</td>
+                          <td className="py-3.5 text-slate-300">
+                            <div>{s.ownerName || '-'}</div>
+                            <div className="text-xs text-slate-500">{s.phone || '-'}</div>
+                          </td>
+                          <td className="py-3.5 font-mono text-xs text-violet-300">{s.licenseKey}</td>
+                          <td className="py-3.5">
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                                s.status === 'active'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                  : s.status === 'trial'
+                                  ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
+                                  : s.status === 'suspended'
+                                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                              }`}
+                            >
+                              {s.status?.toUpperCase()}
+                            </span>
+                          </td>
+                          <td className="py-3.5 text-slate-400 text-xs">{s.expiryDate || 'N/A'}</td>
+                          <td className="py-3.5">
+                            <div className="flex items-center gap-2">
+                              {s.status === 'suspended' ? (
+                                <button
+                                  onClick={() => handleActivateShop(s.shopId)}
+                                  className="px-2.5 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 rounded-lg text-xs font-medium transition"
+                                >
+                                  Activate
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleDisableShop(s.shopId)}
+                                  className="px-2.5 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded-lg text-xs font-medium transition flex items-center gap-1"
+                                >
+                                  <Ban className="w-3 h-3" />
+                                  Suspend
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
 
-        <div className="mt-8 grid gap-4 xl:grid-cols-3">
-          {[
-            { label: 'Total Orders Today', value: stats.total, icon: <TrendingUp className="h-5 w-5" /> , trend: '+14%'},
-            { label: 'Revenue Today', value: formatCurrency(stats.revenue), icon: <DollarSign className="h-5 w-5" /> , trend: '+11%' },
-            { label: 'Pending Prints', value: stats.pending, icon: <Clock3 className="h-5 w-5" /> , trend: '-3%' },
-            { label: 'Printed Orders', value: stats.printed, icon: <CheckCircle className="h-5 w-5" /> , trend: '+9%' },
-            { label: 'Failed Orders', value: stats.failed, icon: <AlertTriangle className="h-5 w-5" /> , trend: '-2%' },
-            { label: 'Active Booths', value: stats.active, icon: <Server className="h-5 w-5" /> , trend: '+4%' },
-          ].map((card, index) => (
-            <motion.div
-              key={card.label}
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.04, duration: 0.35 }}
-              className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-2xl shadow-black/5 backdrop-blur-xl"
-            >
-              <div className="flex items-start justify-between gap-6">
-                <div>
-                  <p className="text-sm text-slate-400">{card.label}</p>
-                  <p className="mt-4 text-3xl font-semibold tracking-tight">{card.value}</p>
-                </div>
-                <div className="rounded-2xl bg-purple-500/10 p-3 text-purple-300">{card.icon}</div>
-              </div>
-              <div className="mt-4 flex items-center gap-2 text-sm text-slate-400">
-                <ArrowUpRight className="h-4 w-4 text-emerald-400" />
-                <span>{card.trend} vs last 24h</span>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        <div className="mt-8 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+        {/* Live Shop Ops View */}
+        {activeTab === 'shop_ops' && (
           <div className="space-y-6">
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/5 backdrop-blur-xl"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm text-slate-400">Live Order Monitoring</p>
-                  <h2 className="mt-2 text-2xl font-semibold">Realtime Order Table</h2>
-                </div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
-                  <CircleDot className="h-3.5 w-3.5 text-emerald-300" /> Live updates
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+              <div className="p-5 bg-slate-900/60 border border-slate-800 rounded-2xl">
+                <p className="text-xs text-slate-400 uppercase">Live Orders</p>
+                <h3 className="text-2xl font-bold text-white mt-1">{stats.totalOrders || orders.length}</h3>
               </div>
-              <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-white/10 bg-slate-950/80">
-                <div className="grid grid-cols-[1.4fr_1fr_1fr_0.8fr_1fr_0.9fr_0.9fr_1.3fr] gap-4 px-5 py-4 text-xs uppercase tracking-[0.2em] text-slate-500 border-b border-white/10">
-                  <span>Order ID</span>
-                  <span>File Name</span>
-                  <span>Type</span>
-                  <span>Pages</span>
-                  <span>Amount</span>
-                  <span>Booth</span>
-                  <span>Status</span>
-                  <span>Actions</span>
-                </div>
-                <div className="max-h-[430px] overflow-y-auto">
-                  {orders.map(order => (
-                    <div key={order.id} className="grid grid-cols-[1.4fr_1fr_1fr_0.8fr_1fr_0.9fr_0.9fr_1.3fr] gap-4 px-5 py-4 text-sm text-slate-200 odd:bg-white/5 even:bg-white/2">
-                      <span className="font-semibold text-slate-100">{order.id}</span>
-                      <span className="truncate">{order.fileName}</span>
-                      <span>{order.type}</span>
-                      <span>{order.pages}</span>
-                      <span>{formatCurrency(order.amount)}</span>
-                      <span>{order.booth}</span>
-                      <span className={`inline-flex items-center justify-center rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_STYLES[order.status] || 'bg-slate-500/10 text-slate-300'}`}>{order.status}</span>
-                      <div className="flex flex-wrap gap-2">
-                        <button onClick={() => handleRetry(order.id)} className="rounded-full bg-slate-800/90 px-3 py-1 text-[11px] uppercase tracking-[0.12em] text-slate-200 hover:bg-slate-700 transition">Retry</button>
-                        <button onClick={() => handleCancel(order.id)} className="rounded-full bg-rose-500/10 px-3 py-1 text-[11px] uppercase tracking-[0.12em] text-rose-200 hover:bg-rose-500/15 transition">Cancel</button>
-                        <button onClick={() => handleReprint(order.id)} className="rounded-full bg-violet-500/10 px-3 py-1 text-[11px] uppercase tracking-[0.12em] text-violet-200 hover:bg-violet-500/15 transition">Reprint</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <div className="p-5 bg-slate-900/60 border border-slate-800 rounded-2xl">
+                <p className="text-xs text-slate-400 uppercase">Live Revenue</p>
+                <h3 className="text-2xl font-bold text-emerald-400 mt-1">₹{stats.revenue || 0}</h3>
               </div>
-            </motion.div>
+              <div className="p-5 bg-slate-900/60 border border-slate-800 rounded-2xl">
+                <p className="text-xs text-slate-400 uppercase">Pending Queue</p>
+                <h3 className="text-2xl font-bold text-amber-400 mt-1">{stats.pending || 0}</h3>
+              </div>
+              <div className="p-5 bg-slate-900/60 border border-slate-800 rounded-2xl">
+                <p className="text-xs text-slate-400 uppercase">Booths Online</p>
+                <h3 className="text-2xl font-bold text-sky-400 mt-1">{booths.filter(b => b.online).length} / 4</h3>
+              </div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/5 backdrop-blur-xl"
-            >
-              <div className="flex items-center justify-between gap-3 mb-5">
-                <div>
-                  <p className="text-sm text-slate-400">Revenue Performance</p>
-                  <h2 className="text-2xl font-semibold">Revenue by Day</h2>
-                </div>
-                <span className="rounded-full bg-slate-900/80 px-3 py-2 text-xs uppercase tracking-[0.18em] text-slate-400">Last 7 days</span>
-              </div>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={DAY_REVENUE} margin={{ top: 10, right: 24, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#A855F7" stopOpacity={0.7} />
-                        <stop offset="95%" stopColor="#A855F7" stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
-                    <XAxis dataKey="day" stroke="#94a3b8" axisLine={false} tickLine={false} />
-                    <YAxis stroke="#94a3b8" axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ background: '#0b1220', border: '1px solid rgba(148,163,184,0.12)', borderRadius: '1rem' }} />
-                    <Area type="monotone" dataKey="revenue" stroke="#A855F7" fill="url(#revenueGradient)" strokeWidth={3} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </motion.div>
-          </div>
-
-          <div className="space-y-6">
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/5 backdrop-blur-xl"
-            >
-              <div className="flex items-center justify-between gap-3 mb-5">
-                <div>
-                  <p className="text-sm text-slate-400">Hourly Load</p>
-                  <h2 className="text-2xl font-semibold">Orders by Hour</h2>
-                </div>
-                <span className="rounded-full bg-slate-900/80 px-3 py-2 text-xs uppercase tracking-[0.18em] text-slate-400">Live feed</span>
-              </div>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={HOUR_ORDERS} margin={{ top: 10, right: 12, left: -10, bottom: 10 }}>
-                    <CartesianGrid stroke="rgba(255,255,255,0.08)" vertical={false} />
-                    <XAxis dataKey="hour" stroke="#94a3b8" axisLine={false} tickLine={false} />
-                    <YAxis stroke="#94a3b8" axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={{ background: '#0b1220', border: '1px solid rgba(148,163,184,0.12)', borderRadius: '1rem' }} />
-                    <Bar dataKey="orders" fill="#38BDF8" radius={[10, 10, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/5 backdrop-blur-xl"
-            >
-              <div className="flex items-center justify-between gap-3 mb-5">
-                <div>
-                  <p className="text-sm text-slate-400">Document type demand</p>
-                  <h2 className="text-2xl font-semibold">Most Used Documents</h2>
-                </div>
-                <span className="rounded-full bg-slate-900/80 px-3 py-2 text-xs uppercase tracking-[0.18em] text-slate-400">Usage</span>
-              </div>
-              <div className="h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={DOC_USAGE} dataKey="value" nameKey="name" innerRadius={62} outerRadius={90} paddingAngle={4} stroke="transparent">
-                      {DOC_USAGE.map(entry => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{ color: '#cbd5e1', fontSize: 12 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/5 backdrop-blur-xl"
-            >
-              <div className="flex items-center justify-between gap-3 mb-5">
-                <div>
-                  <p className="text-sm text-slate-400">Hardware & uptime</p>
-                  <h2 className="text-2xl font-semibold">Booth Management</h2>
-                </div>
-                <span className="rounded-full bg-slate-900/80 px-3 py-2 text-xs uppercase tracking-[0.18em] text-slate-400">Infrastructure</span>
-              </div>
-              <div className="space-y-4">
-                {booths.map(booth => (
-                  <div key={booth.name} className="rounded-3xl border border-white/10 bg-slate-950/80 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-4">
-                      <div>
-                        <h3 className="text-lg font-semibold">{booth.name}</h3>
-                        <p className="text-sm text-slate-500">Printer {booth.connected ? 'Connected' : 'Disconnected'}</p>
-                      </div>
-                      <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium ${booth.online ? 'bg-emerald-500/10 text-emerald-300' : 'bg-rose-500/10 text-rose-300'}`}>
-                        <span className={`h-2.5 w-2.5 rounded-full ${booth.online ? 'bg-emerald-300' : 'bg-rose-300'}`} />
-                        {booth.online ? 'Online' : 'Offline'}
-                      </div>
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-4 text-sm text-slate-400">
-                      <div className="rounded-2xl bg-white/5 p-3">
-                        <p className="text-slate-300">Queue</p>
-                        <p className="mt-2 text-xl font-semibold">{booth.queue}</p>
-                      </div>
-                      <div className="rounded-2xl bg-white/5 p-3">
-                        <p className="text-slate-300">Printed Today</p>
-                        <p className="mt-2 text-xl font-semibold">{booth.printed}</p>
-                      </div>
-                      <div className="rounded-2xl bg-white/5 p-3">
-                        <p className="text-slate-300">Rev Today</p>
-                        <p className="mt-2 text-xl font-semibold">{formatCurrency(booth.revenue)}</p>
-                      </div>
-                      <div className="rounded-2xl bg-white/5 p-3">
-                        <p className="text-slate-300">Locked</p>
-                        <p className="mt-2 text-xl font-semibold">{booth.locked ? 'Yes' : 'No'}</p>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <button onClick={() => handlePauseBooth(booth.name)} className="inline-flex items-center gap-2 rounded-2xl bg-slate-900/90 px-3 py-2 text-sm text-slate-100 hover:bg-slate-800 transition">
-                        <PauseCircle className="h-4 w-4" /> {booth.online ? 'Pause' : 'Resume'}
-                      </button>
-                      <button onClick={() => handleRestartBooth(booth.name)} className="inline-flex items-center gap-2 rounded-2xl bg-violet-500/10 px-3 py-2 text-sm text-violet-200 hover:bg-violet-500/15 transition">
-                        <RefreshCcw className="h-4 w-4" /> Restart
-                      </button>
-                      <button onClick={() => handleLockBooth(booth.name)} className="inline-flex items-center gap-2 rounded-2xl bg-rose-500/10 px-3 py-2 text-sm text-rose-200 hover:bg-rose-500/15 transition">
-                        <Lock className="h-4 w-4" /> {booth.locked ? 'Unlock' : 'Lock'}
-                      </button>
-                    </div>
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-white mb-4">Live Agent Health Checks</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {health.map((h, i) => (
+                  <div key={i} className="p-3.5 bg-slate-800/40 border border-slate-800 rounded-xl flex justify-between items-center text-sm">
+                    <span className="text-slate-300">{h.name}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${h.status === 'online' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                      {h.status}
+                    </span>
                   </div>
                 ))}
               </div>
-            </motion.div>
-          </div>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-6 rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-black/5 backdrop-blur-xl"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-sm text-slate-400">System health overview</p>
-              <h2 className="text-2xl font-semibold">Infrastructure Status</h2>
             </div>
-            <div className="rounded-full bg-slate-900/80 px-3 py-2 text-sm uppercase tracking-[0.18em] text-slate-400">Updated {refreshTick * 4}s ago</div>
           </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {health.map(check => (
-              <div key={check.name} className="rounded-3xl border border-white/10 bg-slate-950/80 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm text-slate-400">{check.name}</p>
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getBadge(check.status)}`}>{check.status}</span>
-                </div>
-                <p className="mt-3 text-lg font-semibold text-slate-100">{check.status === 'online' ? 'Healthy' : 'Needs attention'}</p>
-              </div>
-            ))}
-          </div>
-        </motion.div>
+        )}
       </div>
+
+      {/* Generate License Modal */}
+      {showGenerateModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-[#0f1117] border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4"
+          >
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Key className="w-5 h-5 text-violet-400" />
+                Generate New Shop License
+              </h3>
+              <button onClick={() => setShowGenerateModal(false)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <form onSubmit={handleGenerateLicense} className="space-y-3 text-sm">
+              <div>
+                <label className="block text-slate-400 text-xs mb-1">Shop Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newShopForm.shopName}
+                  onChange={e => setNewShopForm({ ...newShopForm, shopName: e.target.value })}
+                  placeholder="e.g. Sri Sai Xerox"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-violet-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 text-xs mb-1">Owner Name</label>
+                  <input
+                    type="text"
+                    value={newShopForm.ownerName}
+                    onChange={e => setNewShopForm({ ...newShopForm, ownerName: e.target.value })}
+                    placeholder="Ramesh"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    value={newShopForm.phone}
+                    onChange={e => setNewShopForm({ ...newShopForm, phone: e.target.value })}
+                    placeholder="+91 9876543210"
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-violet-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 text-xs mb-1">Initial Status</label>
+                  <select
+                    value={newShopForm.status}
+                    onChange={e => setNewShopForm({ ...newShopForm, status: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-violet-500"
+                  >
+                    <option value="trial">Trial</option>
+                    <option value="active">Active</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-xs mb-1">Trial / Expiry Days</label>
+                  <input
+                    type="number"
+                    value={newShopForm.expiryDays}
+                    onChange={e => setNewShopForm({ ...newShopForm, expiryDays: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white outline-none focus:border-violet-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowGenerateModal(false)}
+                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-5 py-2 bg-violet-600 hover:bg-violet-500 text-white font-medium rounded-xl transition shadow-lg shadow-violet-600/20"
+                >
+                  {loading ? 'Generating...' : 'Generate & Register'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

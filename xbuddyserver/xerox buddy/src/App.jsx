@@ -13,7 +13,7 @@ import { auth, getShopConfig } from './utils/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { calcTotal } from './utils/pricing'
 import * as pdfjsLib from 'pdfjs-dist'
-// Use the same local bundled worker as UploadSection — avoids CDN version mismatch
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url
@@ -21,6 +21,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 
 import ResumeBuilder from './resume-builder/ResumeBuilder'
 import AdminDashboard from './components/AdminDashboard'
+import OwnerDashboard from './components/OwnerDashboard'
 
 const STEP = { HERO: 'hero', UPLOAD: 'upload', SETTINGS: 'settings', PRINTING: 'printing', RESUME: 'resume' }
 const DEFAULT_SETTINGS = { colorMode: 'bw', sideMode: 'single', copies: 1 }
@@ -129,6 +130,17 @@ export default function App() {
   if (step === 'admin' && user && !shopConfig) return <ShopSetup user={user} onComplete={async () => { const c = await getShopConfig(user.uid); setShopConfig(c) }} />
   if (step === 'admin' && user && shopConfig) return <AdminDashboard user={user} onBack={handleReset} />
   if (step === 'booth-admin') return <AdminDashboard onBack={handleReset} />
+  if (step === 'owner') return (
+    <div className="relative min-h-screen bg-[#090a0f]">
+      <button
+        onClick={handleReset}
+        className="fixed top-4 right-6 z-50 px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold"
+      >
+        ← Back to Customer App
+      </button>
+      <OwnerDashboard />
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
@@ -156,16 +168,16 @@ export default function App() {
               Print Now
             </button>
             <button
-              onClick={() => setStep('booth-admin')}
+              onClick={() => setStep('owner')}
               className="px-4 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white font-semibold transition hover:border-purple-400/30 hover:bg-white/10"
             >
-              Admin
+              Shop Owner
             </button>
             <button
-              onClick={handleAdminClick}
+              onClick={() => setStep('booth-admin')}
               className="px-4 py-1.5 rounded-lg border border-purple-500/40 bg-purple-600/20 text-purple-300 font-semibold transition hover:bg-purple-600/30"
             >
-              Owner
+              Founder Admin
             </button>
           </div>
         ) : step === STEP.RESUME ? null : (
@@ -193,12 +205,10 @@ export default function App() {
           {step === STEP.HERO && (
             <motion.div key="hero" exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }}>
               <Hero onGetStarted={() => setStep(STEP.UPLOAD)} onResumeBuilder={() => setStep(STEP.RESUME)} />
-              {/* Divider */}
               <div className="border-t border-white/5" />
               <div id="academic-toolkit">
                 <AcademicToolkit onPrint={handleExternalPrint} />
               </div>
-              {/* Footer */}
               <div className="border-t border-white/5 py-8 text-center">
                 <p className="text-gray-700 text-xs">X Buddy — Smart Campus Utility Platform</p>
               </div>
