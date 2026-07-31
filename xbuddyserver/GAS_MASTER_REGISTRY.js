@@ -45,12 +45,13 @@ function handleMasterRequest(p) {
   if (action === 'getPendingSignups')  return getPendingSignups();
   if (action === 'validateLicense')    return validateLicense(p);
   if (action === 'provisionShop')      return provisionShop(p);
+  if (action === 'registerShop')       return provisionShop(p); // Alias
+  if (action === 'createShop')         return provisionShop(p); // Alias
   if (action === 'getShop')            return getShop(p);
   if (action === 'listShops')           return listShops();
   if (action === 'updateShopStatus')  return updateShopStatus(p);
-  if (action === 'createShop')         return provisionShop(p); // Alias
-  if (action === 'postHeartbeat')      return postHeartbeat(p);
-  if (action === 'postRollup')         return postRollup(p);
+  if (action === 'postHeartbeat' || action === 'heartbeat') return postHeartbeat(p);
+  if (action === 'postRollup' || action === 'rollup')       return postRollup(p);
   if (action === 'getAggregateStats')  return getAggregateStats();
 
   return sendResponse(true, { message: "XBuddy Master Registry API is live!" }, null);
