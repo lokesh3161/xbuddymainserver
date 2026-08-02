@@ -7,7 +7,7 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     background: #07070d;
     color: #e2e8f0;
     min-height: 100vh;
@@ -18,62 +18,50 @@
   }
   .card {
     width: 100%;
-    max-width: 560px;
+    max-width: 620px;
     background: #0f1117;
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 24px;
-    padding: 40px;
+    padding: 36px 40px;
     box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
   }
   .logo {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 28px;
   }
   .logo-icon {
-    width: 40px; height: 40px;
-    background: #7c3aed;
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, #7c3aed, #4f46e5);
     border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 20px; color: #fff;
+    font-weight: 800; font-size: 22px; color: #fff;
     box-shadow: 0 8px 20px rgba(124,58,237,0.3);
   }
-  .logo-text { font-size: 22px; font-weight: 700; color: #fff; }
-
-  /* Tab Mode Switcher */
-  .mode-switcher {
-    display: flex;
-    background: #1a1d27;
-    padding: 4px;
-    border-radius: 14px;
-    margin-bottom: 24px;
-    border: 1px solid rgba(255,255,255,0.06);
-  }
-  .mode-btn {
-    flex: 1;
-    padding: 9px;
-    text-align: center;
-    font-size: 13px;
+  .logo-text { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+  .badge {
+    background: rgba(124,58,237,0.15);
+    color: #a78bfa;
+    border: 1px solid rgba(124,58,237,0.3);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
     font-weight: 600;
-    color: #64748b;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .mode-btn.active {
-    background: #7c3aed;
-    color: #fff;
-    box-shadow: 0 4px 12px rgba(124,58,237,0.3);
   }
 
-  /* Progress bar */
+  /* Progress Bar */
   .progress-wrap { margin-bottom: 28px; }
   .progress-steps {
     display: flex;
     align-items: center;
     gap: 0;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
   }
   .step-dot {
     width: 32px; height: 32px;
@@ -81,11 +69,11 @@
     border: 2px solid rgba(255,255,255,0.12);
     background: transparent;
     display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 700; color: #64748b;
+    font-size: 13px; font-weight: 700; color: #64748b;
     flex-shrink: 0;
     transition: all 0.3s;
   }
-  .step-dot.active  { border-color: #7c3aed; background: #7c3aed; color: #fff; }
+  .step-dot.active  { border-color: #7c3aed; background: #7c3aed; color: #fff; box-shadow: 0 0 12px rgba(124,58,237,0.5); }
   .step-dot.done    { border-color: #10b981; background: #10b981; color: #fff; }
   .step-line {
     flex: 1; height: 2px;
@@ -96,32 +84,95 @@
   .progress-label { font-size: 13px; color: #64748b; }
   .progress-label span { color: #a78bfa; font-weight: 600; }
 
-  /* Step panels */
+  /* Panels */
   .step-panel { display: none; }
-  .step-panel.active { display: block; }
+  .step-panel.active { display: block; animation: fadeIn 0.3s ease-out; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
 
   h2 { font-size: 22px; font-weight: 700; margin-bottom: 6px; color: #fff; }
-  .subtitle { font-size: 14px; color: #64748b; margin-bottom: 20px; line-height: 1.5; }
+  .subtitle { font-size: 14px; color: #94a3b8; margin-bottom: 20px; line-height: 1.5; }
 
-  label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; margin-top: 14px; }
+  label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; margin-top: 14px; font-weight: 500; }
   label:first-of-type { margin-top: 0; }
   input[type="text"], input[type="password"], input[type="email"] {
     width: 100%;
-    background: #1a1d27;
+    background: #161822;
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 12px;
-    padding: 11px 14px;
+    padding: 12px 14px;
     color: #e2e8f0;
     font-size: 14px;
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
   }
-  input:focus { border-color: #7c3aed; }
+  input:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.2); }
 
+  /* Step 2 Google Login & Copy Box */
+  .google-card {
+    background: #161822;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .btn-google {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: #ffffff;
+    color: #1f2937;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 12px 20px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    width: 100%;
+    text-decoration: none;
+  }
+  .btn-google:hover { background: #f3f4f6; transform: translateY(-1px); }
+
+  /* Guide Steps Box */
+  .guide-box {
+    background: #141620;
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .guide-title { font-size: 13px; font-weight: 700; color: #a78bfa; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .guide-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: #cbd5e1;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+  .guide-item:last-child { margin-bottom: 0; }
+  .guide-num {
+    background: rgba(124,58,237,0.2);
+    color: #c4b5fd;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* Printer List */
   .printer-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
   .printer-item {
     display: flex; align-items: center; gap: 12px;
-    background: #1a1d27;
+    background: #161822;
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: 12px;
     padding: 12px 14px;
@@ -131,14 +182,16 @@
   .printer-item:hover { border-color: rgba(124,58,237,0.4); }
   .printer-item.selected { border-color: #7c3aed; background: rgba(124,58,237,0.08); }
   .printer-item input[type="radio"] { accent-color: #7c3aed; width: 16px; height: 16px; }
-  .printer-name { font-size: 14px; }
+  .printer-name { font-size: 14px; color: #e2e8f0; }
 
+  /* Alert messaging */
   .alert {
     border-radius: 12px;
     padding: 12px 14px;
     font-size: 13px;
     margin-top: 16px;
     display: none;
+    line-height: 1.4;
   }
   .alert.error   { background: rgba(239,68,68,0.1);  border: 1px solid rgba(239,68,68,0.2);  color: #fca5a5; display: block; }
   .alert.success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2); color: #6ee7b7; display: block; }
@@ -180,18 +233,21 @@
   .done-screen { text-align: center; padding: 20px 0; }
   .done-icon { font-size: 56px; margin-bottom: 16px; }
   .done-screen h2 { font-size: 26px; margin-bottom: 8px; }
-  .done-screen p { color: #64748b; font-size: 14px; line-height: 1.6; }
-  .done-screen .closing { margin-top: 20px; font-size: 13px; color: #a78bfa; }
+  .done-screen p { color: #94a3b8; font-size: 14px; line-height: 1.6; }
+  .done-screen .closing { margin-top: 20px; font-size: 13px; color: #a78bfa; font-weight: 500; }
 </style>
 </head>
 <body>
 <div class="card">
-  <div class="logo">
-    <div class="logo-icon">X</div>
-    <span class="logo-text">XBuddy Setup Wizard</span>
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">X</div>
+      <span class="logo-text">XBuddy SaaS</span>
+    </div>
+    <span class="badge">Master Onboarding</span>
   </div>
 
-  <!-- Progress -->
+  <!-- Progress Steps Bar -->
   <div class="progress-wrap">
     <div class="progress-steps">
       <div class="step-dot active" id="dot-1">1</div>
@@ -199,108 +255,172 @@
       <div class="step-dot" id="dot-2">2</div>
       <div class="step-line" id="line-2"></div>
       <div class="step-dot" id="dot-3">3</div>
+      <div class="step-line" id="line-3"></div>
+      <div class="step-dot" id="dot-4">4</div>
     </div>
-    <div class="progress-label" id="progress-label">Step <span>1</span> of 3: Activation</div>
+    <div class="progress-label" id="progress-label">Step <span>1</span> of 4: Shop Information</div>
   </div>
 
-  <!-- Step 1: Activation Mode Selector -->
+  <!-- Step 1: Shop & Owner Details -->
   <div class="step-panel active" id="panel-1">
-    <h2>Shop Activation</h2>
-    <p class="subtitle">Connect your XBuddy Shop package to your backend spreadsheet.</p>
+    <h2>Welcome to XBuddy</h2>
+    <p class="subtitle">Enter your shop details to get started with automated setup.</p>
 
-    <div class="mode-switcher">
-      <div class="mode-btn active" id="mode-btn-gas" onclick="switchMode('gas')">Direct GAS Web App URL</div>
-      <div class="mode-btn" id="mode-btn-saas" onclick="switchMode('saas')">Shop ID + License Key</div>
-    </div>
+    <label>Shop Name *</label>
+    <input type="text" id="shopName" placeholder="e.g. Sri Sai Xerox & Stationers" required />
 
-    <!-- Mode 1: Direct GAS Web App URL -->
-    <div id="form-mode-gas">
-      <label>Shop Name</label>
-      <input type="text" id="gasShopName" placeholder="e.g. Sri Sai Xerox" />
+    <label>Owner Name *</label>
+    <input type="text" id="ownerName" placeholder="e.g. Ramesh Kumar" required />
 
-      <label>Owner Name</label>
-      <input type="text" id="gasOwnerName" placeholder="e.g. Ramesh Kumar" />
+    <label>Phone Number *</label>
+    <input type="text" id="phone" placeholder="e.g. +91 9876543210" required />
 
-      <label>Phone Number</label>
-      <input type="text" id="gasPhone" placeholder="e.g. +91 9876543210" />
-
-      <label>Email Address</label>
-      <input type="email" id="gasEmail" placeholder="e.g. owner@srisai.com" />
-
-      <label>Google Apps Script Web App URL</label>
-      <input type="text" id="gasUrl" placeholder="https://script.google.com/macros/s/.../exec" />
-    </div>
-
-    <!-- Mode 2: SaaS Shop ID + License Key -->
-    <div id="form-mode-saas" style="display: none;">
-      <label>Shop ID</label>
-      <input type="text" id="shopId" placeholder="e.g. SHOP0001" />
-
-      <label>License Key</label>
-      <input type="text" id="licenseKey" placeholder="e.g. XB-A1B2-C3D4-E5F6" />
-    </div>
-
-    <label>Booth PIN <span style="color:#64748b;font-size:11px">(4–8 digits, used at the booth)</span></label>
-    <input type="password" id="boothPin" placeholder="e.g. 1234" value="1234" maxlength="8" />
+    <label>Email Address *</label>
+    <input type="email" id="email" placeholder="e.g. owner@srisaixerox.com" required />
 
     <div class="alert" id="alert-1"></div>
 
     <div class="btn-row">
-      <button class="btn btn-primary" id="btn-1" onclick="step1Verify()">Connect Backend & Continue →</button>
+      <button class="btn btn-primary" id="btn-1" onclick="step1Next()">Continue to Google Drive Setup →</button>
     </div>
   </div>
 
-  <!-- Step 2: Printer Selection -->
+  <!-- Step 2: Google Authentication & Master Template Copy -->
   <div class="step-panel" id="panel-2">
-    <h2>Printer Selection</h2>
-    <p class="subtitle">Select the primary printer connected to this shop computer.</p>
-    <div id="printerLoading" class="alert info">
-      <span class="spinner"></span> Detecting printers...
+    <h2>Copy Master Template</h2>
+    <p class="subtitle">Sign in with Google to copy your dedicated XBuddy Master Sheet & Apps Script backend.</p>
+
+    <div class="google-card">
+      <p style="font-size:13px; color:#94a3b8; margin-bottom:14px;">
+        Clicking below will copy the <strong>XBuddy Master Template</strong> directly into your Google Drive as <strong id="copyTargetName">XBuddy - Shop</strong>.
+      </p>
+      <a href="#" id="googleCopyBtn" target="_blank" class="btn-google" onclick="onMasterTemplateCopied()">
+        <svg width="18" height="18" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        Sign in with Google & Copy Template
+      </a>
     </div>
-    <div class="printer-list" id="printerList"></div>
-    <div class="alert" id="alert-2"></div>
+
+    <div class="alert info" id="alert-2">
+      After copying the sheet to your Google Drive, click <strong>Continue to Deployment</strong> below.
+    </div>
 
     <div class="btn-row">
       <button class="btn btn-ghost" onclick="goTo(1)">← Back</button>
-      <button class="btn btn-primary" id="btn-2" onclick="step2Finish()">Complete Setup ✓</button>
+      <button class="btn btn-primary" onclick="goTo(3)">Continue to Deployment Walkthrough →</button>
     </div>
   </div>
 
-  <!-- Step 3: Finish Screen -->
+  <!-- Step 3: Apps Script Deployment Walkthrough & URL Entry -->
+  <div class="step-panel" id="panel-3">
+    <h2>Connect Google Apps Script</h2>
+    <p class="subtitle">Complete the 30-second one-time Google deployment to obtain your Web App URL.</p>
+
+    <div class="guide-box">
+      <div class="guide-title">One-Time Deployment Steps</div>
+      <div class="guide-item">
+        <div class="guide-num">1</div>
+        <div>In your copied Google Sheet, click <strong>Extensions → Apps Script</strong>.</div>
+      </div>
+      <div class="guide-item">
+        <div class="guide-num">2</div>
+        <div>Click <strong>Deploy → New Deployment</strong> (top right).</div>
+      </div>
+      <div class="guide-item">
+        <div class="guide-num">3</div>
+        <div>Select type <strong>Web App</strong>. Set <strong>Execute as: Me</strong> and <strong>Who has access: Anyone</strong>.</div>
+      </div>
+      <div class="guide-item">
+        <div class="guide-num">4</div>
+        <div>Click <strong>Deploy</strong>, authorize permissions, and copy the generated <strong>Web App URL</strong>.</div>
+      </div>
+    </div>
+
+    <label>Google Apps Script Web App URL *</label>
+    <input type="text" id="gasUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+
+    <div class="alert" id="alert-3"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(2)">← Back</button>
+      <button class="btn btn-primary" id="btn-3" onclick="step3Verify()">Verify & Connect Backend →</button>
+    </div>
+  </div>
+
+  <!-- Step 4: Printer Selection -->
+  <div class="step-panel" id="panel-4">
+    <h2>Printer Selection</h2>
+    <p class="subtitle">Select the default thermal / document printer connected to this machine.</p>
+
+    <div id="printerLoading" class="alert info">
+      <span class="spinner"></span> Detecting installed system printers...
+    </div>
+
+    <div class="printer-list" id="printerList"></div>
+    <div class="alert" id="alert-4"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goTo(3)">← Back</button>
+      <button class="btn btn-primary" id="btn-4" onclick="step4Finish()">Complete Setup & Start Print Agent ✓</button>
+    </div>
+  </div>
+
+  <!-- Step 5: Finish Screen -->
   <div class="step-panel" id="panel-done">
     <div class="done-screen">
       <div class="done-icon">🎉</div>
-      <h2>Setup Completed!</h2>
-      <p id="doneDetails">Your shop agent is configured and ready to handle print orders.</p>
-      <p class="closing">Launching print agent and closing wizard...</p>
+      <h2>Shop Onboarding Completed!</h2>
+      <p id="doneDetails">Your shop agent has been configured and is ready to process incoming print orders silently.</p>
+      <p class="closing">Starting XBuddy Print Agent in background...</p>
     </div>
   </div>
 </div>
 
 <script>
 const state = {
-  mode: 'gas', // 'gas' | 'saas'
-  shopId: '',
-  licenseKey: '',
-  boothPin: '1234',
   shopName: '',
   ownerName: '',
   phone: '',
   email: '',
-  sheetId: '',
   gasUrl: '',
-  masterGasUrl: '',
+  sheetId: '',
   printer: '',
-  currentStep: 1
+  currentStep: 1,
+  pricing: null
 }
 
-function switchMode(mode) {
-  state.mode = mode
-  document.getElementById('mode-btn-gas').className = 'mode-btn' + (mode === 'gas' ? ' active' : '')
-  document.getElementById('mode-btn-saas').className = 'mode-btn' + (mode === 'saas' ? ' active' : '')
-  document.getElementById('form-mode-gas').style.display = mode === 'gas' ? 'block' : 'none'
-  document.getElementById('form-mode-saas').style.display = mode === 'saas' ? 'block' : 'none'
-  clearAlert('alert-1')
+function updateProgress(step) {
+  for (let i = 1; i <= 4; i++) {
+    const dot  = document.getElementById('dot-' + i)
+    const line = document.getElementById('line-' + i)
+    if (dot) {
+      dot.className   = 'step-dot' + (i < step ? ' done' : i === step ? ' active' : '')
+      dot.textContent = i < step ? '✓' : i
+    }
+    if (line) line.className = 'step-line' + (i < step ? ' done' : '')
+  }
+  const label = document.getElementById('progress-label')
+  const stepNames = ['Shop Information', 'Google Template', 'Apps Script Deployment', 'Printer Selection']
+  label.innerHTML = `Step <span>${step}</span> of 4: ${stepNames[step-1] || 'Complete'}`
+}
+
+function goTo(step) {
+  document.getElementById('panel-' + state.currentStep).classList.remove('active')
+  state.currentStep = step
+  document.getElementById('panel-' + step).classList.add('active')
+  updateProgress(step)
+
+  if (step === 2) {
+    document.getElementById('copyTargetName').textContent = 'XBuddy - ' + (state.shopName || 'Shop')
+    const templateCopyUrl = `https://docs.google.com/spreadsheets/d/1Zt-MasterTemplate-XBuddy-SaaS/copy?title=${encodeURIComponent('XBuddy - ' + (state.shopName || 'Shop'))}`
+    document.getElementById('googleCopyBtn').href = templateCopyUrl
+  } else if (step === 4) {
+    loadPrinters()
+  }
 }
 
 function showAlert(id, msg, type = 'error') {
@@ -315,133 +435,77 @@ function clearAlert(id) {
   el.textContent = ''
 }
 
-function updateProgress(step) {
-  for (let i = 1; i <= 3; i++) {
-    const dot  = document.getElementById('dot-' + i)
-    const line = document.getElementById('line-' + i)
-    if (dot) {
-      dot.className   = 'step-dot' + (i < step ? ' done' : i === step ? ' active' : '')
-      dot.textContent = i < step ? '✓' : i
-    }
-    if (line) line.className = 'step-line' + (i < step ? ' done' : '')
-  }
-  const label = document.getElementById('progress-label')
-  const stepNames = ['Activation', 'Printer Selection', 'Complete']
-  label.innerHTML = `Step <span>${step}</span> of 3: ${stepNames[step-1] || ''}`
-}
-
-function goTo(step) {
-  document.getElementById('panel-' + state.currentStep).classList.remove('active')
-  state.currentStep = step
-  document.getElementById('panel-' + step).classList.add('active')
-  updateProgress(step)
-  if (step === 2) loadPrinters()
-}
-
-// ── Step 1: Verify Activation Details ──
-async function step1Verify() {
+function step1Next() {
   clearAlert('alert-1')
-  state.boothPin = document.getElementById('boothPin').value.trim() || '1234'
-  const btn = document.getElementById('btn-1')
+  state.shopName  = document.getElementById('shopName').value.trim()
+  state.ownerName = document.getElementById('ownerName').value.trim()
+  state.phone     = document.getElementById('phone').value.trim()
+  state.email     = document.getElementById('email').value.trim()
 
-  if (state.mode === 'gas') {
-    state.shopName = document.getElementById('gasShopName').value.trim()
-    state.ownerName = document.getElementById('gasOwnerName').value.trim()
-    state.phone = document.getElementById('gasPhone').value.trim()
-    state.email = document.getElementById('gasEmail').value.trim()
-    state.gasUrl = document.getElementById('gasUrl').value.trim()
+  if (!state.shopName || !state.ownerName || !state.phone || !state.email) {
+    return showAlert('alert-1', 'Please fill in all shop information fields.')
+  }
 
-    if (!state.gasUrl) {
-      return showAlert('alert-1', 'Please enter your Google Apps Script Web App URL.')
+  goTo(2)
+}
+
+function onMasterTemplateCopied() {
+  showAlert('alert-2', 'Google Drive template copy window opened! Once copied, click "Continue to Deployment Walkthrough".', 'success')
+}
+
+async function step3Verify() {
+  clearAlert('alert-3')
+  state.gasUrl = document.getElementById('gasUrl').value.trim()
+
+  if (!state.gasUrl) {
+    return showAlert('alert-3', 'Please enter your Google Apps Script Web App URL.')
+  }
+
+  const btn = document.getElementById('btn-3')
+  btn.disabled = true
+  btn.innerHTML = '<span class="spinner"></span> Verifying Apps Script Connection...'
+
+  try {
+    const res = await fetch('/wizard/verify-gas-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gasUrl: state.gasUrl,
+        shopName: state.shopName,
+        ownerName: state.ownerName,
+        phone: state.phone,
+        email: state.email
+      })
+    }).then(r => r.json())
+
+    btn.disabled = false
+    btn.innerHTML = 'Verify & Connect Backend →'
+
+    if (!res.ok) {
+      return showAlert('alert-3', res.error || 'Could not verify Google Apps Script URL.')
     }
 
-    btn.disabled = true
-    btn.innerHTML = '<span class="spinner"></span> Verifying Apps Script Backend...'
-
-    try {
-      const res = await fetch('/wizard/verify-gas-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gasUrl: state.gasUrl,
-          shopName: state.shopName,
-          ownerName: state.ownerName,
-          phone: state.phone,
-          email: state.email
-        })
-      }).then(r => r.json())
-
-      btn.disabled = false
-      btn.innerHTML = 'Connect Backend & Continue →'
-
-      if (!res.ok) {
-        return showAlert('alert-1', res.error || 'Could not verify Google Apps Script URL.')
-      }
-
-      state.shopName = res.data.shopName || state.shopName || 'Xerox Shop'
-      state.sheetId = res.data.sheetId || ''
-      showAlert('alert-1', `Connected successfully! Shop: ${state.shopName}`, 'success')
-      setTimeout(() => goTo(2), 600)
-    } catch (err) {
-      btn.disabled = false
-      btn.innerHTML = 'Connect Backend & Continue →'
-      showAlert('alert-1', 'Failed to connect. Please check internet connection.')
-    }
-  } else {
-    // SaaS Shop ID + License Key
-    state.shopId = document.getElementById('shopId').value.trim()
-    state.licenseKey = document.getElementById('licenseKey').value.trim()
-
-    if (!state.shopId || !state.licenseKey) {
-      return showAlert('alert-1', 'Please enter both Shop ID and License Key.')
-    }
-
-    btn.disabled = true
-    btn.innerHTML = '<span class="spinner"></span> Validating with Master Registry...'
-
-    try {
-      const res = await fetch('/wizard/verify-provisioning', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopId: state.shopId,
-          licenseKey: state.licenseKey
-        })
-      }).then(r => r.json())
-
-      btn.disabled = false
-      btn.innerHTML = 'Connect Backend & Continue →'
-
-      if (!res.ok) {
-        return showAlert('alert-1', res.error || 'Invalid Shop ID or License Key.')
-      }
-
-      state.shopName = res.data.shopName || 'Xerox Shop'
-      state.sheetId = res.data.sheetId || ''
-      state.gasUrl = res.data.gasUrl || ''
-      state.masterGasUrl = res.data.masterGasUrl || ''
-
-      showAlert('alert-1', `Validated successfully! Shop: ${state.shopName}`, 'success')
-      setTimeout(() => goTo(2), 600)
-    } catch (err) {
-      btn.disabled = false
-      btn.innerHTML = 'Connect Backend & Continue →'
-      showAlert('alert-1', 'Could not reach validation server.')
-    }
+    state.sheetId = res.data.sheetId || ''
+    state.pricing = res.data.pricing || null
+    showAlert('alert-3', `Connected successfully to Google Sheet!`, 'success')
+    setTimeout(() => goTo(4), 800)
+  } catch (err) {
+    btn.disabled = false
+    btn.innerHTML = 'Verify & Connect Backend →'
+    showAlert('alert-3', 'Failed to connect. Please check network and Web App URL.')
   }
 }
 
-// ── Step 2: Printer Detection ──
 async function loadPrinters() {
   document.getElementById('printerLoading').style.display = 'block'
   document.getElementById('printerList').innerHTML = ''
-  clearAlert('alert-2')
+  clearAlert('alert-4')
 
   const res = await fetch('/wizard/detect-printers').then(r => r.json()).catch(() => ({ ok: false, printers: [] }))
   document.getElementById('printerLoading').style.display = 'none'
 
   if (!res.ok || !res.printers.length) {
-    showAlert('alert-2', 'No printers detected. You can proceed and connect a printer later.', 'info')
+    showAlert('alert-4', 'No physical printers detected. The Print Agent will process orders in PDF test mode.', 'info')
     return
   }
 
@@ -461,10 +525,9 @@ function selectPrinter(name, el) {
   state.printer = name
 }
 
-// ── Finish Setup ──
-async function step2Finish() {
-  clearAlert('alert-2')
-  const btn = document.getElementById('btn-2')
+async function step4Finish() {
+  clearAlert('alert-4')
+  const btn = document.getElementById('btn-4')
   btn.disabled = true
   btn.innerHTML = '<span class="spinner"></span> Saving Configuration...'
 
@@ -477,32 +540,29 @@ async function step2Finish() {
         ownerName: state.ownerName,
         phone: state.phone,
         email: state.email,
-        shopId: state.shopId || 'SHOP0001',
-        licenseKey: state.licenseKey || 'XB-PERP-ETUAL-KEY0',
-        masterGasUrl: state.masterGasUrl,
         sheetId: state.sheetId,
         gasUrl: state.gasUrl,
-        boothPin: state.boothPin,
-        printer: state.printer
+        printer: state.printer,
+        pricing: state.pricing
       })
     }).then(r => r.json())
 
     if (!res.ok) {
       btn.disabled = false
-      btn.innerHTML = 'Complete Setup ✓'
-      return showAlert('alert-2', res.error || 'Failed to save configuration.')
+      btn.innerHTML = 'Complete Setup & Start Print Agent ✓'
+      return showAlert('alert-4', res.error || 'Failed to save configuration.')
     }
 
-    document.getElementById('panel-2').classList.remove('active')
+    document.getElementById('panel-4').classList.remove('active')
     document.getElementById('panel-done').classList.add('active')
-    updateProgress(3)
-    document.getElementById('doneDetails').textContent = `Configuration saved for ${state.shopName}.`
+    updateProgress(5)
+    document.getElementById('doneDetails').textContent = `Configuration saved for ${state.shopName}. Your Print Agent is running.`
 
     setTimeout(() => window.close(), 3000)
   } catch (err) {
     btn.disabled = false
-    btn.innerHTML = 'Complete Setup ✓'
-    showAlert('alert-2', 'Error saving configuration: ' + err.message)
+    btn.innerHTML = 'Complete Setup & Start Print Agent ✓'
+    showAlert('alert-4', 'Error saving configuration: ' + err.message)
   }
 }
 </script>

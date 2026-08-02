@@ -18,6 +18,18 @@ app.use(express.json({ limit: '10mb' }))
 app.use(express.static(path.join(__dirname)))
 
 const DEFAULT_MASTER_GAS_URL = 'https://script.google.com/macros/s/AKfycbz_Np3K34IPwNSvzq8aFMKwNHMXkLb-cNcaLmGrnROGuSczlHcwO9OQi4dCBkOo68E85Q/exec'
+const DEFAULT_MASTER_TEMPLATE_ID = '1Zt-MasterTemplate-XBuddy-SaaS' // Master Template Sheet ID
+
+// ── Master Template Copy Link Info ──────────────────────────────────────
+app.get('/wizard/master-template-info', (req, res) => {
+  const shopName = (req.query.shopName || 'My Shop').trim()
+  const copyUrl = `https://docs.google.com/spreadsheets/d/${DEFAULT_MASTER_TEMPLATE_ID}/copy?title=${encodeURIComponent('XBuddy - ' + shopName)}`
+  res.json({
+    ok: true,
+    masterTemplateId: DEFAULT_MASTER_TEMPLATE_ID,
+    copyUrl
+  })
+})
 
 // ── Step 1: Validate Shop ID + License Key (Auto-Retrieves Sheet ID & GAS URL) ──
 app.post('/wizard/verify-provisioning', async (req, res) => {
@@ -66,7 +78,7 @@ app.post('/wizard/verify-gas-url', async (req, res) => {
     // 1. Verify URL responds to action=ping
     const pingRes = await axios.get(`${trimmedUrl}?action=ping`, { timeout: 8000 }).catch(() => null)
     if (!pingRes || !pingRes.data) {
-      return res.json({ ok: false, error: 'Could not connect to Google Apps Script URL. Please check deployment settings (Access: Anyone).' })
+      return res.json({ ok: false, error: 'Could not connect to Google Apps Script URL. Please ensure deployment settings are set to (Execute as: Me, Who has access: Anyone).' })
     }
 
     // 2. Fetch config via action=getConfig
@@ -117,9 +129,10 @@ app.get('/wizard/detect-printers', (req, res) => {
 
 // ── Finish & Auto-write shop-config.json ──────────────────────────────
 app.post('/wizard/finish', (req, res) => {
-  const { shopName, shopId, licenseKey, masterGasUrl, sheetId, gasUrl, boothPin, printer } = req.body
-  if (!shopId || !licenseKey)
-    return res.json({ ok: false, error: 'Shop ID and License Key are required.' })
+  const { shopName, ownerName, phone, email, shopId, licenseKey, masterGasUrl, sheetId, gasUrl, boothPin, printer, pricing } = req.body
+  
+  const finalShopId = (shopId && shopId.trim()) || `SHOP-${Date.now().toString(36).toUpperCase()}`
+  const finalLicenseKey = (licenseKey && licenseKey.trim()) || `XB-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
 
   try {
     fs.mkdirSync(CONFIG_DIR, { recursive: true })
@@ -127,21 +140,26 @@ app.post('/wizard/finish', (req, res) => {
     fs.mkdirSync(path.join(BASE_DIR, 'pending'),   { recursive: true })
     fs.mkdirSync(path.join(BASE_DIR, 'completed'), { recursive: true })
     fs.mkdirSync(path.join(BASE_DIR, 'temp'),      { recursive: true })
+    fs.mkdirSync(path.join(BASE_DIR, 'printed'),   { recursive: true })
 
     const config = {
       shopName:     (shopName && shopName.trim()) || 'Xerox Shop',
-      shopId:       shopId.trim(),
-      licenseKey:   licenseKey.trim(),
+      ownerName:    (ownerName && ownerName.trim()) || 'Owner',
+      phone:        (phone && phone.trim()) || '',
+      email:        (email && email.trim()) || '',
+      shopId:       finalShopId,
+      licenseKey:   finalLicenseKey,
       masterGasUrl: (masterGasUrl && masterGasUrl.trim()) || DEFAULT_MASTER_GAS_URL,
       sheetId:      (sheetId && sheetId.trim()) || '',
       gasUrl:       (gasUrl && gasUrl.trim()) || DEFAULT_MASTER_GAS_URL,
       boothPin:     (boothPin && boothPin.trim()) || '1234',
       printer:      printer || '',
+      pricing:      pricing || { bwPrice: 2.00, colorPrice: 10.00, a3Extra: 5.00, currency: 'INR' },
       setupDone:    true,
       createdAt:    new Date().toISOString(),
     }
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8')
-    res.json({ ok: true })
+    res.json({ ok: true, data: config })
   } catch (err) {
     res.json({ ok: false, error: err.message })
   }
@@ -171,3 +189,4 @@ function startWizard(onDone) {
 }
 
 module.exports = { startWizard }
+

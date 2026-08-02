@@ -1,70 +1,62 @@
-# X Buddy Print Agent
+# XBuddy Shop Package — Onboarding & Operations Guide
 
-Automatically prints PDFs from Google Sheets orders.
+Welcome to **XBuddy SaaS**! This package enables automated, instant shop onboarding with zero coding required.
 
-## Setup
+---
 
-### 1. Install Node.js
-Download from https://nodejs.org (LTS)
+## Quick Start (3-Minute Setup)
 
-### 2. Install dependencies
-```bash
-cd xbuddy-print-agent
-npm install
-```
+1. **Extract** the `XBuddy Shop Package.zip` folder on your shop computer.
+2. **Double-click `START.bat`**.
+3. **Setup Wizard**:
+   - Enter your **Shop Name**, **Owner Name**, **Phone Number**, and **Email**.
+   - Click **Sign in with Google & Copy Template** to duplicate the **XBuddy Master Template** into your Google Drive as `XBuddy - <Shop Name>`.
+   - In your Google Sheet, click **Extensions → Apps Script → Deploy → New Deployment**.
+   - Select **Web app**, set **Execute as: Me**, **Who has access: Anyone**, then click **Deploy**.
+   - Copy your **Web App URL**, paste it into the Setup Wizard, and click **Verify & Connect**.
+   - Select your connected **Printer**.
+4. Click **Complete Setup**. The wizard will save your configuration and automatically start the **XBuddy Print Agent**.
 
-### 3. Setup Google Service Account (IMPORTANT)
+---
 
-You need a Google Service Account to read/write Google Sheets.
-
-Steps:
-1. Go to https://console.cloud.google.com
-2. Create a new project (or use existing)
-3. Enable "Google Sheets API"
-4. Go to IAM & Admin → Service Accounts
-5. Create a new service account
-6. Click on it → Keys → Add Key → JSON
-7. Download the JSON file
-8. Rename it to: credentials.json
-9. Place it in this folder: xbuddy-print-agent/credentials.json
-
-### 4. Share your Google Sheet with the service account
-
-1. Open your Google Sheet
-2. Click Share
-3. Add the service account email (found in credentials.json as "client_email")
-4. Give it Editor access
-
-### 5. Connect your printer
-Make sure your printer is connected and set as default on Windows.
-
-### 6. Run the agent
-```bash
-npm start
-```
-
-## How it works
-
-Every 5 seconds:
-1. Reads Google Sheet
-2. Finds rows where Print Status = "Waiting"
-3. Downloads PDF from Google Drive
-4. Prints automatically
-5. Updates status to "Printed"
-
-## Folder Structure
+## How It Works
 
 ```
-xbuddy-print-agent/
-├── downloads/          ← Temp PDF storage (auto-deleted after print)
-├── services/
-│   ├── sheets.js       ← Read Google Sheets
-│   ├── printer.js      ← Print PDFs
-│   ├── downloader.js   ← Download from Drive
-│   └── updater.js      ← Update print status
-├── utils/
-│   └── logger.js       ← Console logging
-├── credentials.json    ← Google Service Account (YOU ADD THIS)
-├── index.js            ← Main polling loop
-└── package.json
+Customer Web App
+      │
+      ▼
+Google Apps Script (Web App URL)
+      │
+      ▼
+Google Sheets Database (XBuddy - <Shop Name>)
+      │
+      ▼
+XBuddy Print Agent (Runs in Background)
+      │
+      ▼
+Thermal / Document Printer
 ```
+
+---
+
+## Directory Overview
+
+- `START.bat`: One-click startup script.
+- `install.bat`: Dependency installer script.
+- `index.js`: Main print agent & setup launcher.
+- `wizard/`: Interactive onboarding wizard.
+- `config/`: Configuration folder (`shop-config.json`).
+- `printer/`: Printer management utilities.
+- `repositories/`: Data access repositories.
+- `services/`: Core background services.
+- `pending/`: Temporary storage for incoming print jobs.
+- `printed/`: Archive of printed documents.
+- `logs/`: Diagnostic system logs.
+
+---
+
+## Troubleshooting & Support
+
+- **No Printer Detected**: Ensure your USB/Network printer is powered on and installed in Windows Settings before starting the wizard.
+- **Web App Connection Error**: Verify that the Google Apps Script Web App access permission is set to **Anyone**.
+- **Heartbeat & Status**: Check `logs/` for detailed operational logs.
