@@ -22,6 +22,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 import ResumeBuilder from './resume-builder/ResumeBuilder'
 import AdminDashboard from './components/AdminDashboard'
 import OwnerDashboard from './components/OwnerDashboard'
+import GetPackageModal from './components/GetPackageModal'
 
 const STEP = { HERO: 'hero', UPLOAD: 'upload', SETTINGS: 'settings', PRINTING: 'printing', RESUME: 'resume' }
 const DEFAULT_SETTINGS = { colorMode: 'bw', sideMode: 'single', copies: 1 }
@@ -37,6 +38,7 @@ export default function App() {
   const [fileInfo, setFileInfo]   = useState(null)
   const [settings, setSettings]   = useState(DEFAULT_SETTINGS)
   const [showPayment, setShowPayment] = useState(false)
+  const [showPackageModal, setShowPackageModal] = useState(false)
   const [orderId, setOrderId]     = useState(null)
   const [user, setUser]           = useState(null)
   const [shopConfig, setShopConfig] = useState(null)
@@ -44,6 +46,9 @@ export default function App() {
   const settingsRef = useRef(null)
 
   useEffect(() => {
+    if (window.location.pathname === '/founder' || window.location.pathname === '/founder.html') {
+      setStep('booth-admin')
+    }
     return onAuthStateChanged(auth, async (u) => {
       setUser(u)
       if (u) {
@@ -126,6 +131,11 @@ export default function App() {
     setStep('admin')
   }
 
+  function handlePackageComplete(details) {
+    setShowPackageModal(false)
+    setStep('owner')
+  }
+
   if (showAdminLogin) return <Login onLogin={handleAdminLoginSuccess} />
   if (step === 'admin' && user && !shopConfig) return <ShopSetup user={user} onComplete={async () => { const c = await getShopConfig(user.uid); setShopConfig(c) }} />
   if (step === 'admin' && user && shopConfig) return <AdminDashboard user={user} onBack={handleReset} />
@@ -153,7 +163,7 @@ export default function App() {
           <span className="text-white font-bold text-lg">X Buddy</span>
         </button>
         {step === STEP.HERO ? (
-          <div className="flex items-center gap-3 md:gap-6 text-xs text-gray-500">
+          <div className="flex items-center gap-2 md:gap-4 text-xs text-gray-500">
             <a href="#academic-toolkit" className="hidden md:block hover:text-purple-400 transition-colors">Academic Toolkit</a>
             <button
               onClick={() => setStep(STEP.RESUME)}
@@ -163,19 +173,28 @@ export default function App() {
             </button>
             <button
               onClick={() => setStep(STEP.UPLOAD)}
-              className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-semibold transition-all"
+              className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-semibold transition-all"
             >
               Print Now
             </button>
             <button
+              onClick={() => setShowPackageModal(true)}
+              className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg font-semibold transition-all shadow-md shadow-purple-600/20 flex items-center gap-1"
+            >
+              📦 Get Shop Package
+            </button>
+            <button
               onClick={() => setStep('owner')}
-              className="px-4 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white font-semibold transition hover:border-purple-400/30 hover:bg-white/10"
+              className="px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white font-semibold transition hover:border-purple-400/30 hover:bg-white/10"
             >
               Shop Owner
             </button>
             <button
-              onClick={() => setStep('booth-admin')}
-              className="px-4 py-1.5 rounded-lg border border-purple-500/40 bg-purple-600/20 text-purple-300 font-semibold transition hover:bg-purple-600/30"
+              onClick={() => {
+                if (window.location.pathname !== '/founder.html') window.history.pushState({}, '', '/founder.html')
+                setStep('booth-admin')
+              }}
+              className="px-3 py-1.5 rounded-lg border border-purple-500/40 bg-purple-600/20 text-purple-300 font-semibold transition hover:bg-purple-600/30"
             >
               Founder Admin
             </button>
@@ -266,6 +285,13 @@ export default function App() {
           onClose={() => setShowPayment(false)}
         />
       )}
+
+      {/* Get Shop Package Modal */}
+      <GetPackageModal
+        isOpen={showPackageModal}
+        onClose={() => setShowPackageModal(false)}
+        onComplete={handlePackageComplete}
+      />
     </div>
   )
 }
