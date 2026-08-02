@@ -189,15 +189,6 @@ export default function App() {
             >
               Shop Owner
             </button>
-            <button
-              onClick={() => {
-                if (window.location.pathname !== '/founder.html') window.history.pushState({}, '', '/founder.html')
-                setStep('booth-admin')
-              }}
-              className="px-3 py-1.5 rounded-lg border border-purple-500/40 bg-purple-600/20 text-purple-300 font-semibold transition hover:bg-purple-600/30"
-            >
-              Founder Admin
-            </button>
           </div>
         ) : step === STEP.RESUME ? null : (
           <div className="flex items-center gap-2 text-xs text-gray-500">
