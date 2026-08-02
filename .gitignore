@@ -1,13 +1,39 @@
+# Dependencies
 node_modules/
+
+# Built binaries and distributions
 dist/
+xbuddyserver/dist/
+*.exe
+*.zip
+
+# Environment & Credentials
 .env
 credentials.json
 credentials/
+xbuddyserver/credentials.json
+xbuddyserver/credentials/
+
+# Shop Configs
 shop-config.json
 xbuddyserver/shop-config.json
 xbuddyserver/config/
-*.log
+xbuddyserver/config/shop-config.json
+
+# Downloads & Customer Files
+downloads/
+xbuddyserver/downloads/
+*.b64
+*.pdf
+*.png
+*.jpg
+
+# Runtime & Logs
 temp/
 completed/
 pending/
 logs/
+*.log
+tunnel.log
+tunnel-url.txt
+build-check.log

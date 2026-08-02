@@ -5,10 +5,9 @@ shop-config.json
 config/shop-config.json
 config/license-cache.json
 config/pricing.json
-downloads/*.pdf
-downloads/*.png
-downloads/*.jpg
-downloads/*.b64
+downloads/
+downloads/*
+*.b64
 tunnel.log
 tunnel-url.txt
 *.log
@@ -20,4 +19,3 @@ pending/
 logs/
 console.log*
 *.exe
-!xerox buddy/public/cloudflared.exe

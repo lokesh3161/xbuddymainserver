@@ -142,6 +142,8 @@ app.post('/wizard/finish', (req, res) => {
     fs.mkdirSync(path.join(BASE_DIR, 'temp'),      { recursive: true })
     fs.mkdirSync(path.join(BASE_DIR, 'printed'),   { recursive: true })
 
+    const generatedPin = Math.floor(1000 + Math.random() * 9000).toString()
+
     const config = {
       shopName:     (shopName && shopName.trim()) || 'Xerox Shop',
       ownerName:    (ownerName && ownerName.trim()) || 'Owner',
@@ -152,7 +154,7 @@ app.post('/wizard/finish', (req, res) => {
       masterGasUrl: (masterGasUrl && masterGasUrl.trim()) || DEFAULT_MASTER_GAS_URL,
       sheetId:      (sheetId && sheetId.trim()) || '',
       gasUrl:       (gasUrl && gasUrl.trim()) || DEFAULT_MASTER_GAS_URL,
-      boothPin:     (boothPin && boothPin.trim()) || '1234',
+      boothPin:     (boothPin && boothPin.trim()) || generatedPin,
       printer:      printer || '',
       pricing:      pricing || { bwPrice: 2.00, colorPrice: 10.00, a3Extra: 5.00, currency: 'INR' },
       setupDone:    true,
