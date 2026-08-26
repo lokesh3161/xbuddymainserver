@@ -31,10 +31,38 @@ let printerCache = null
 let lastPrinterCheck = 0
 const PRINTER_CACHE_TTL = 15000
 
+function getLocalConfigPath() {
+  const configDir = path.join(BASE_DIR, 'config')
+  if (!fs.existsSync(configDir)) {
+    try { fs.mkdirSync(configDir, { recursive: true }) } catch (e) {}
+  }
+  return path.join(configDir, 'local-config.json')
+}
+
+function getSavedPrinter() {
+  try {
+    const p = getLocalConfigPath()
+    if (fs.existsSync(p)) {
+      const data = JSON.parse(fs.readFileSync(p, 'utf8'))
+      if (data && data.printer) return data.printer
+    }
+  } catch (e) {}
+  return null
+}
+
+function savePrinterPreference(printerName) {
+  try {
+    const p = getLocalConfigPath()
+    fs.writeFileSync(p, JSON.stringify({ printer: printerName }, null, 2), 'utf8')
+  } catch (e) {}
+}
+
 async function getDefaultPrinter(verbose = true) {
   try {
     const now = Date.now()
     if (printerCache && now - lastPrinterCheck < PRINTER_CACHE_TTL) return printerCache
+
+    const saved = getSavedPrinter()
 
     const printers = await new Promise((resolve, reject) => {
       const wmicPath = 'C:\\Windows\\System32\\wbem\\wmic.exe'
@@ -80,12 +108,21 @@ async function getDefaultPrinter(verbose = true) {
       printers.forEach((p, i) => logger.dim(`  ${i + 1}. ${p}`))
     }
 
+    if (saved && printers.includes(saved)) {
+      printerCache = saved
+      lastPrinterCheck = Date.now()
+      return printerCache
+    }
+
     const real = printers.find(p => {
       const n = p.toLowerCase()
       return !n.includes('onenote') && !n.includes('fax') && !n.includes('xps') && !n.includes('pdf')
     })
 
     printerCache = real || printers[0]
+    if (printerCache) {
+      savePrinterPreference(printerCache)
+    }
     lastPrinterCheck = Date.now()
     return printerCache
   } catch (err) {

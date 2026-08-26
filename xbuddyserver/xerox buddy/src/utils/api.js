@@ -16,6 +16,39 @@ async function getConfig() {
 }
 
 async function getGasUrl() {
+  // 1. URL Query Parameter ?gasUrl=
+  if (typeof window !== 'undefined') {
+    try {
+      const urlParams = new URLSearchParams(window.location.search)
+      const paramGasUrl = urlParams.get('gasUrl') || urlParams.get('gas_url')
+      if (paramGasUrl && paramGasUrl.startsWith('https://')) {
+        localStorage.setItem('xbuddy_gas_url', paramGasUrl)
+        return paramGasUrl
+      }
+    } catch (e) {}
+  }
+
+  // 2. Try Auto-Discovery from Local Agent running on http://localhost:3001/config
+  try {
+    const res = await fetch(`${LOCAL_API}/config`, { signal: AbortSignal.timeout(2000) })
+    if (res.ok) {
+      const data = await res.json()
+      if (data?.gasUrl && data.gasUrl.startsWith('https://')) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('xbuddy_gas_url', data.gasUrl)
+        }
+        return data.gasUrl
+      }
+    }
+  } catch (e) {}
+
+  // 3. Saved in LocalStorage
+  if (typeof window !== 'undefined') {
+    const savedGasUrl = localStorage.getItem('xbuddy_gas_url')
+    if (savedGasUrl && savedGasUrl.startsWith('https://')) return savedGasUrl
+  }
+
+  // 4. Firebase Config or Default fallback
   const config = await getConfig()
   return config?.gasUrl || DEFAULT_GAS_URL
 }
@@ -190,3 +223,68 @@ export async function submitOrder(orderData) {
 
   return { success: true, orderId }
 }
+
+export async function verifyShop(shopData) {
+  const endpoints = [
+    '/api/shop/verify',
+    `${LOCAL_API}/api/shop/verify`,
+  ]
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(shopData),
+        signal:  AbortSignal.timeout(12000),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        if (shopData?.gasUrl && typeof window !== 'undefined') {
+          localStorage.setItem('xbuddy_gas_url', shopData.gasUrl)
+        }
+        return data
+      }
+      if (data && data.error) {
+        return { success: false, error: data.error }
+      }
+    } catch {
+      continue
+    }
+  }
+  return {
+    success: false,
+    error: 'Unable to connect to the backend verification server. Please verify that the backend server is running.',
+  }
+}
+
+export async function downloadShopPackage(shopData) {
+  const endpoints = [
+    '/api/shop/package',
+    `${LOCAL_API}/api/shop/package`,
+  ]
+  for (const url of endpoints) {
+    try {
+      const res = await fetch(url, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(shopData),
+      })
+      if (res.ok) {
+        const blob = await res.blob()
+        const downloadUrl = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = downloadUrl
+        a.download = 'XBuddy-Shop-Package.zip'
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(downloadUrl)
+        a.remove()
+        return { success: true }
+      }
+    } catch {
+      continue
+    }
+  }
+  return { success: false, error: 'Failed to generate and download shop package. Please try again.' }
+}
+

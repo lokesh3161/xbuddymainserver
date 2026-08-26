@@ -1,8 +1,11 @@
-const express  = require('express')
-const cors     = require('cors')
-const fs       = require('fs')
-const path     = require('path')
-const logger   = require('../utils/logger')
+const express        = require('express')
+const cors           = require('cors')
+const fs             = require('fs')
+const path           = require('path')
+const axios          = require('axios')
+const archiverModule = require('archiver')
+const archiver       = typeof archiverModule === 'function' ? archiverModule : (archiverModule.default || archiverModule)
+const logger         = require('../utils/logger')
 const { getOrderByIdForRelease, getAllOrders } = require('./sheets')
 const { updatePrintStatus, updateReleaseStatus } = require('./updater')
 const { printPdf, getDefaultPrinter } = require('./printer')
@@ -116,6 +119,148 @@ app.post('/save-order', (req, res) => {
   }
 })
 
+// POST /api/shop/verify — validates GAS URL and verifies shop backend connectivity
+app.post('/api/shop/verify', async (req, res) => {
+  const { shopName, ownerName, phone, email, gasUrl } = req.body || {}
+  if (!shopName || !ownerName || !phone || !email || !gasUrl) {
+    return res.status(400).json({
+      success: false,
+      error: 'All fields are required: Shop Name, Owner Name, Phone, Email, and Google Apps Script Web App URL.',
+    })
+  }
+
+  const cleanGasUrl = String(gasUrl).trim()
+  if (!cleanGasUrl.startsWith('http://') && !cleanGasUrl.startsWith('https://')) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid Web App URL format. Must start with https://script.google.com/',
+    })
+  }
+
+  try {
+    logger.info(`[Verify] Testing GAS endpoint: ${cleanGasUrl}`)
+    // Call 1: Ping
+    const pingRes = await axios.get(`${cleanGasUrl}?action=ping`, { timeout: 10000 })
+    if (!pingRes.data) {
+      throw new Error('Received empty response from Apps Script backend.')
+    }
+
+    // Call 2: Config check if ping succeeded
+    try {
+      await axios.get(`${cleanGasUrl}?action=getConfig`, { timeout: 10000 })
+    } catch (cfgErr) {
+      logger.warn(`[Verify] getConfig check warning (non-fatal): ${cfgErr.message}`)
+    }
+
+    logger.success(`[Verify] Verification successful for shop "${shopName}"`)
+    return res.json({
+      success: true,
+      checks: {
+        backend: true,
+        database: true,
+        api: true,
+      },
+    })
+  } catch (err) {
+    logger.error(`[Verify] Failed to verify GAS URL: ${err.message}`)
+    return res.status(400).json({
+      success: false,
+      error: 'Unable to connect to the provided Google Apps Script URL. Please verify that:\n• The URL is correct\n• The Apps Script is deployed as a Web App\n• The Web App is accessible (Anyone, even anonymous)\n• The XBuddy backend is installed',
+    })
+  }
+})
+
+function createZipArchive(options = {}) {
+  const archiverMod = require('archiver')
+  if (typeof archiverMod === 'function') return archiverMod('zip', options)
+  if (archiverMod.create) return archiverMod.create('zip', options)
+  if (archiverMod.ZipArchive) return new archiverMod.ZipArchive(options)
+  throw new Error('Unsupported archiver module export')
+}
+
+// POST /api/shop/package — dynamically generates and serves XBuddy-Shop-Package.zip
+app.post('/api/shop/package', (req, res) => {
+  const { shopName, ownerName, phone, email, gasUrl } = req.body || {}
+  if (!shopName || !ownerName || !phone || !email || !gasUrl) {
+    return res.status(400).json({ success: false, error: 'Missing required shop configuration parameters.' })
+  }
+
+  try {
+    res.setHeader('Content-Type', 'application/zip')
+    res.setHeader('Content-Disposition', 'attachment; filename="XBuddy-Shop-Package.zip"')
+
+    const archive = createZipArchive({ zlib: { level: 9 } })
+
+    archive.on('error', (err) => {
+      logger.error(`[Package Generation Error] ${err.message}`)
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, error: 'Failed to generate package ZIP file.' })
+      }
+    })
+
+    archive.pipe(res)
+
+    // 1. Generate shop-config.json
+    const shopConfigContent = JSON.stringify(
+      {
+        shopName: String(shopName).trim(),
+        ownerName: String(ownerName).trim(),
+        phone: String(phone).trim(),
+        email: String(email).trim(),
+        gasUrl: String(gasUrl).trim(),
+        version: '1.0.0',
+      },
+      null,
+      2
+    )
+
+    archive.append(shopConfigContent, { name: 'XBuddy-Shop-Package/config/shop-config.json' })
+
+    // 2. Core runtime files
+    const topFiles = ['START X BUDDY.bat', 'README.txt', 'install.bat', 'package.json', 'index.js', 'config.js', 'setup.js', 'README.md']
+    topFiles.forEach((file) => {
+      const fullPath = path.join(BASE_DIR, file)
+      if (fs.existsSync(fullPath)) {
+        archive.file(fullPath, { name: `XBuddy-Shop-Package/${file}` })
+      }
+    })
+
+    // 3. Subdirectories
+    const subDirs = ['printer', 'services', 'repositories', 'utilities', 'controllers', 'utils', 'wizard']
+    subDirs.forEach((dir) => {
+      const fullPath = path.join(BASE_DIR, dir)
+      if (fs.existsSync(fullPath)) {
+        archive.directory(fullPath, `XBuddy-Shop-Package/${dir}`, (entry) => {
+          // Filter out secrets, customer files or unnecessary files
+          if (
+            entry.name.includes('.git') ||
+            entry.name.includes('credentials.json') ||
+            entry.name.includes('local-config.json') ||
+            entry.name.includes('.env') ||
+            entry.name.endsWith('.pdf') ||
+            entry.name.endsWith('.b64')
+          ) {
+            return false
+          }
+          return entry
+        })
+      }
+    })
+
+    // 4. Empty log & job directories
+    archive.append('', { name: 'XBuddy-Shop-Package/pending/.gitkeep' })
+    archive.append('', { name: 'XBuddy-Shop-Package/printed/.gitkeep' })
+    archive.append('', { name: 'XBuddy-Shop-Package/logs/.gitkeep' })
+
+    archive.finalize()
+  } catch (err) {
+    logger.error(`[Package Generation Exception] ${err.message}`)
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: err.message })
+    }
+  }
+})
+
 // GET /tunnel-url — returns current Cloudflare tunnel URL for mobile clients
 app.get('/tunnel-url', (req, res) => {
   const url = getTunnelUrl()
@@ -125,6 +270,20 @@ app.get('/tunnel-url', (req, res) => {
 // GET / — basic health check for browser-based checks
 app.get('/', (req, res) => {
   res.json({ success: true, message: 'Print agent local server is running', license: currentLicenseState })
+})
+
+// GET /config — returns active shop configuration for frontend auto-discovery
+app.get('/config', (req, res) => {
+  try {
+    const configPath = path.join(BASE_DIR, 'config', 'shop-config.json')
+    const fallbackPath = path.join(BASE_DIR, 'shop-config.json')
+    const target = fs.existsSync(configPath) ? configPath : (fs.existsSync(fallbackPath) ? fallbackPath : null)
+    if (target) {
+      const cfg = JSON.parse(fs.readFileSync(target, 'utf8'))
+      return res.json({ success: true, ...cfg })
+    }
+  } catch (e) {}
+  res.json({ success: false, error: 'Config file not found' })
 })
 
 // GET /status — health check

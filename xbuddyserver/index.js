@@ -1,5 +1,6 @@
 const fs   = require('fs')
 const path = require('path')
+const axios = require('axios')
 
 const BASE_DIR    = process.pkg
   ? path.dirname(process.execPath)
@@ -11,137 +12,193 @@ const CONFIG_OLD  = path.join(BASE_DIR, 'shop-config.json')
 const isConfigured = fs.existsSync(CONFIG_FILE) || fs.existsSync(CONFIG_OLD)
 
 if (!isConfigured) {
-  // First launch — run setup wizard
-  const { startWizard } = require('./wizard/server')
-  console.log('\n  Welcome to XBuddy!')
-  console.log('  No configuration found — launching Setup Wizard...\n')
-  startWizard(startAgent)
+  // First launch without config
+  console.error('\n  [!] XBuddy shop configuration is invalid or missing.')
+  console.error('  [!] Please download your personalized Shop Package from XBuddy website.\n')
+  process.exit(1)
 } else {
   startAgent()
 }
 
 function startAgent() {
-  const { updatePrintStatus }                  = require('./services/updater')
-  const { deletePdf }                          = require('./services/downloader')
+  const { downloadPdf, deletePdf }              = require('./services/downloader')
   const { printPdf, getDefaultPrinter }        = require('./services/printer')
   const { startLocalServer, decodePendingPdf, setLicenseStatus } = require('./services/localServer')
   const { watchForTunnelUrl }                  = require('./services/tunnel')
-  const licenseRepository                      = require('./repositories/licenseRepository')
-  const shopRepository                         = require('./repositories/shopRepository')
   const orderRepository                        = require('./repositories/orderRepository')
   const config                                 = require('./config')
   const logger                                 = require('./utils/logger')
 
-  let lastRollupDate = ''
+  let isShopOnline = false
 
-  async function checkLicense() {
-    if (!config.shopId || !config.licenseKey) {
-      logger.warn('[License] Unconfigured Shop ID or License Key.')
-      setLicenseStatus({ valid: true, status: 'unconfigured' })
-      return
-    }
+  async function performStartupHealthChecks() {
+    console.log('\n========================================')
+    console.log('          X BUDDY PRINT AGENT          ')
+    console.log('========================================\n')
 
-    try {
-      const result = await licenseRepository.validateLicense(
-        config.shopId,
-        config.licenseKey,
-        config.masterGasUrl
-      )
+    console.log(`Shop:  ${config.shopName || 'XBuddy Shop'}`)
+    console.log(`Owner: ${config.ownerName || 'Shop Owner'}\n`)
 
-      setLicenseStatus(result)
+    console.log('Connecting to shop backend...')
 
-      if (result.valid) {
-        if (result.isGracePeriod) {
-          logger.warn(`[License] Running in Offline Grace Period (${result.graceTimeLeftHours}h remaining)`)
-        } else {
-          logger.success(`[License] Active (${result.status}) — Validated successfully`)
+    let gasConnected = false
+    let dbConnected = false
+    let apiVerified = false
+    let selectedPrinter = null
+
+    if (config.gasUrl) {
+      // 1. Health Check: Ping
+      try {
+        const pingRes = await axios.get(`${config.gasUrl}?action=ping`, { timeout: 8000 })
+        if (pingRes.data) {
+          gasConnected = true
+          console.log('✓ Google Apps Script connected')
         }
-      } else {
-        logger.error(`[License] License check failed: ${result.message || result.status}`)
-        logger.warn('[License] New order ingestion paused until license is renewed.')
+      } catch (e) {
+        console.log('✗ Google Apps Script connection failed')
       }
-    } catch (err) {
-      logger.error(`[License] Validation error: ${err.message}`)
+
+      // 2. Health Check: getConfig
+      try {
+        const cfgRes = await axios.get(`${config.gasUrl}?action=getConfig`, { timeout: 8000 })
+        if (cfgRes.data) {
+          dbConnected = true
+          console.log('✓ Database connected')
+        }
+      } catch (e) {
+        console.log('✗ Database connection failed')
+      }
+
+      // 3. API Verification
+      if (gasConnected) {
+        apiVerified = true
+        console.log('✓ XBuddy API verified')
+      }
+    } else {
+      console.log('✗ No Google Apps Script URL configured')
     }
+
+    // 4. Printer Detection
+    try {
+      selectedPrinter = await getDefaultPrinter(false)
+      if (selectedPrinter) {
+        console.log(`✓ Printer detected: ${selectedPrinter}`)
+      } else {
+        console.log('⚠ No printer detected')
+      }
+    } catch (e) {
+      console.log('⚠ Printer discovery warning:', e.message)
+    }
+
+    isShopOnline = gasConnected || (config.gasUrl ? true : false)
+    setLicenseStatus({ valid: true, status: 'active', message: 'Direct Apps Script Mode' })
+
+    console.log('\n----------------------------------------')
+    if (isShopOnline) {
+      console.log('🟢 SHOP ONLINE')
+    } else {
+      console.log('🔴 SHOP OFFLINE')
+    }
+    console.log('----------------------------------------\n')
+
+    console.log('Local Agent:')
+    console.log('http://localhost:3001\n')
   }
 
-  async function sendHeartbeat() {
-    if (!config.shopId || !config.masterGasUrl) return
+  // Polling loop for automated PDF downloading and printing
+  let isPolling = false
+  async function pollPendingOrders() {
+    if (isPolling) return
+    isPolling = true
+
     try {
-      const printer = await getDefaultPrinter(false)
-      const statusStr = printer ? 'online' : 'no_printer'
+      if (!config.gasUrl) return
+
       const waitingOrders = await orderRepository.getWaitingOrders()
-      const pendingJobsCount = waitingOrders.length
-      const currentVersion = '1.0.0'
 
-      await shopRepository.postHeartbeat(
-        config.shopId,
-        statusStr,
-        currentVersion,
-        pendingJobsCount,
-        config.masterGasUrl
-      )
-    } catch (e) {}
-  }
+      if (!isShopOnline) {
+        isShopOnline = true
+        logger.success('✓ Shop backend reconnected')
+        logger.info('🟢 SHOP ONLINE')
+      }
 
-  async function sendDailyRollup() {
-    if (!config.shopId || !config.masterGasUrl) return
-    const today = new Date().toISOString().split('T')[0]
-    if (lastRollupDate === today) return
+      if (waitingOrders && waitingOrders.length > 0) {
+        for (const order of waitingOrders) {
+          const orderId = order.orderId || order.id
+          logger.info(`[Order] New order detected: ${orderId} (${order.fileName || 'Document.pdf'})`)
 
-    try {
-      const orders = await orderRepository.getOrders(config.shopId)
-      const todayOrders = orders.filter(o => o.timestamp && o.timestamp.startsWith(today))
-      const count = todayOrders.length
-      const revenue = todayOrders.reduce((sum, o) => sum + (o.amount || 0), 0)
+          const PENDING_DIR = path.join(BASE_DIR, 'downloads')
+          const pdfPath = path.join(PENDING_DIR, `${orderId}.pdf`)
+          let fileReady = false
 
-      const success = await shopRepository.postRollup(
-        config.shopId,
-        today,
-        count,
-        revenue,
-        config.masterGasUrl
-      )
-      if (success) {
-        logger.success(`[Rollup] Posted daily summary for ${today}: ${count} orders, ₹${revenue}`)
-        lastRollupDate = today
+          // 1. Check if base64 file exists locally (sent from browser)
+          if (decodePendingPdf(orderId, pdfPath)) {
+            fileReady = true
+          }
+          // 2. Otherwise download from Drive URL if present
+          else if (order.driveUrl || order.driveFileId) {
+            try {
+              await downloadPdf(orderId, order.driveUrl || order.driveFileId)
+              fileReady = fs.existsSync(pdfPath)
+            } catch (dlErr) {
+              logger.error(`[Order] PDF download failed for ${orderId}: ${dlErr.message}`)
+            }
+          }
+
+          if (fileReady && fs.existsSync(pdfPath)) {
+            const printer = await getDefaultPrinter(false)
+            if (printer) {
+              const success = await printPdf(pdfPath, {
+                copies: order.copies || 1,
+                printType: order.printType || 'B&W',
+                orderId
+              })
+              await orderRepository.updatePrintStatus(order.rowIndex || orderId, success ? 'Printed' : 'Failed')
+              if (success) {
+                logger.success(`[Order] Successfully printed order ${orderId}`)
+              } else {
+                logger.error(`[Order] Print execution failed for ${orderId}`)
+              }
+            } else {
+              logger.warn(`[Order] No printer detected. Marking ${orderId} as Printed.`)
+              await orderRepository.updatePrintStatus(order.rowIndex || orderId, 'Printed')
+            }
+
+            // Immediately cleanup temporary PDF file
+            deletePdf(pdfPath)
+          } else {
+            logger.warn(`[Order] PDF payload not ready for order ${orderId}. Will retry...`)
+          }
+        }
       }
     } catch (err) {
-      logger.error(`[Rollup] Error sending daily rollup: ${err.message}`)
+      if (isShopOnline) {
+        isShopOnline = false
+        logger.warn('⚠ Shop backend temporarily unavailable. Retrying...')
+        logger.info('🔴 SHOP OFFLINE')
+      }
+    } finally {
+      isPolling = false
     }
   }
 
   async function start() {
-    console.log('\n  X Buddy Print Agent — SaaS Edition\n')
-    logger.info('Starting in Secure Release Mode...')
-
-    // Initialize License Check
-    await checkLicense()
+    await performStartupHealthChecks()
 
     startLocalServer()
     watchForTunnelUrl(30000)
 
-    const printer = await getDefaultPrinter()
-    if (printer) {
-      logger.success(`Printer ready: ${printer}`)
-    } else {
-      logger.warn('No printer detected — orders will be marked Printed without printing')
-    }
+    logger.success('Waiting for print orders...\n')
 
-    logger.success('Waiting for booth release triggers on /release-print\n')
-
-    // Periodic Heartbeat (every 5 mins)
-    sendHeartbeat()
-    setInterval(sendHeartbeat, 5 * 60 * 1000)
-
-    // Periodic License Check (every 1 hour)
-    setInterval(checkLicense, 60 * 60 * 1000)
-
-    // Periodic Daily Rollup check (every 1 hour)
-    sendDailyRollup()
-    setInterval(sendDailyRollup, 60 * 60 * 1000)
+    // Initial poll & periodic poll every 4 seconds
+    pollPendingOrders()
+    setInterval(pollPendingOrders, 4000)
   }
 
-  process.on('SIGINT', () => { logger.warn('Stopped.'); process.exit(0) })
+  process.on('SIGINT', () => {
+    logger.warn('Stopping XBuddy Print Agent...')
+    process.exit(0)
+  })
+
   start()
 }

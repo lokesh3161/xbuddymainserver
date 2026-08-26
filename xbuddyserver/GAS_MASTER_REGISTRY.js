@@ -1,18 +1,52 @@
 /**
+ * ==========================================================
  * XBuddy Master Registry — Serverless API Layer (Google Apps Script)
  * Bound to: "XBuddy-Master-Registry" Google Sheet
- * 
- * Schema Tabs Managed:
- * 1. Shops (16 columns)
- * 2. Signups (8 columns - Pending Setup)
- * 3. Rollups (5 columns)
- * 4. Request Logs (4 columns - Rate limiting & Anti-brute-force)
+ * ==========================================================
  */
 
-const SHOPS_SHEET_NAME    = "Shops";
-const SIGNUPS_SHEET_NAME  = "Signups";
-const ROLLUPS_SHEET_NAME  = "Rollups";
-const LOGS_SHEET_NAME     = "Request Logs";
+const APP = {
+  NAME: "XBuddy Master Registry",
+  VERSION: "1.0.0",
+  CREATED_BY: "Creative Originals"
+};
+
+// =============================
+// Sheet Names
+// =============================
+
+const SHEETS = {
+  SHOPS: "Shops",
+  SIGNUPS: "Pending Signups",
+  REQUEST_LOGS: "Request Logs",
+  DAILY_ROLLUPS: "Daily Rollups"
+};
+
+// =============================
+// License Status
+// =============================
+
+const LICENSE_STATUS = {
+  TRIAL: "Trial",
+  ACTIVE: "Active",
+  EXPIRED: "Expired",
+  SUSPENDED: "Suspended"
+};
+
+// =============================
+// Plans
+// =============================
+
+const PLANS = {
+  STARTER: "Starter",
+  PROFESSIONAL: "Professional",
+  ENTERPRISE: "Enterprise"
+};
+
+const SHOPS_SHEET_NAME    = SHEETS.SHOPS;
+const SIGNUPS_SHEET_NAME  = SHEETS.SIGNUPS;
+const ROLLUPS_SHEET_NAME  = SHEETS.DAILY_ROLLUPS;
+const LOGS_SHEET_NAME     = SHEETS.REQUEST_LOGS;
 
 function doGet(e) {
   try {

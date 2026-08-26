@@ -3,6 +3,7 @@ credentials.json
 credentials/
 shop-config.json
 config/shop-config.json
+config/local-config.json
 config/license-cache.json
 config/pricing.json
 downloads/
