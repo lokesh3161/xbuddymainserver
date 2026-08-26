@@ -1,5 +1,6 @@
+import { getGasUrl } from './api'
+
 const LOCAL_API = 'http://localhost:3001'
-const GAS_URL   = 'https://script.google.com/macros/s/AKfycbz_Np3K34IPwNSvzq8aFMKwNHMXkLb-cNcaLmGrnROGuSczlHcwO9OQi4dCBkOo68E85Q/exec'
 
 let _tunnelUrl = null
 let _lastFetch = 0
@@ -25,7 +26,8 @@ export async function getTunnelUrl() {
 
   // 2. Try GAS (tunnel.js publishes URL here on every start)
   try {
-    const res = await fetch(`${GAS_URL}?action=getTunnelUrl`, { signal: AbortSignal.timeout(5000) })
+    const gasUrl = await getGasUrl()
+    const res = await fetch(`${gasUrl}?action=getTunnelUrl`, { signal: AbortSignal.timeout(5000) })
     if (res.ok) {
       const data = await res.json()
       if (data?.url?.startsWith('https://')) {
